@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[ ]:
+
 
 # TO DO:
 # add batch_normalization layer
 
 # try with flattened inputs ?
+
+
+# In[ ]:
 
 
 # import libraries
@@ -22,6 +27,7 @@ import cv2
 from sklearn.model_selection import train_test_split
 from glob import glob
 import math
+#get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 # In[ ]:
@@ -228,7 +234,7 @@ class VAE(keras.Model):
            # )
             kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
             kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-            total_loss = reconstruction_loss + kl_loss
+            total_loss = (1000 * reconstruction_loss) + kl_loss
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
         self.total_loss_tracker.update_state(total_loss)
@@ -245,8 +251,10 @@ class VAE(keras.Model):
 
 
 vae = VAE(encoder=vae_encoder, decoder=vae_decoder)
-vae.compile(optimizer='adam')
+vae.compile(optimizer='RMSprop')
 
+
+# 
 
 # In[ ]:
 
@@ -255,37 +263,7 @@ model = vae
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(True)
 early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=2, restore_best_weights=True)
-history = model.fit(train_x, epochs=20, batch_size=256, callbacks=early_stop)
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-def plot_history(history,metric=None):
-  fig, ax1 = plt.subplots(figsize=(10, 8))
-
-  epoch_count=len(history.history['loss'])
-
-  line1,=ax1.plot(range(1,epoch_count+1),history.history['loss'],label='train_loss',color='orange')
-  ax1.plot(range(1,epoch_count+1),history.history['kl_loss'],label='kl_loss',color = line1.get_color(), linestyle = '--')
-  ax1.set_xlim([1,epoch_count])
-  ax1.set_ylim([0, max(max(history.history['loss']),max(history.history['kl_loss']))])
-  ax1.set_ylabel('loss',color = line1.get_color())
-  ax1.tick_params(axis='y', labelcolor=line1.get_color())
-  ax1.set_xlabel('Epochs')
-  _=ax1.legend(loc='lower left')
-
-
-# In[ ]:
-
-
-plot_history(history)
+history = model.fit(train_x, epochs=50, batch_size=250*2, callbacks=early_stop)
 
 
 # In[ ]:
@@ -331,7 +309,10 @@ Train_Val_Plot(history.history['loss'],
 # In[ ]:
 
 
+import pickle
 
+with open('trainHistoryDict.txt', 'wb') as file_pi:
+    pickle.dump(history.history, file_pi)
 
 
 # In[ ]:
@@ -352,6 +333,373 @@ print(train_y[0])
 print(train_y_label[0])
 
 
+# In[ ]:
 
 
-vae.save_weights('weights/vae.h5')
+p = vae.predict(train_x[:1000])
+
+
+# In[ ]:
+
+
+p[0].shape
+
+
+# In[ ]:
+
+
+#vae.save_weights('weights/vae.h5')
+
+
+# In[44]:
+
+
+vae(np.zeros((1,50,50,3)))
+vae.load_weights('weights/vae.h5')
+
+
+# In[ ]:
+
+
+
+
+
+# In[45]:
+
+
+plt.imshow(p[0])
+plt.show()
+
+
+# In[ ]:
+
+
+plt.imshow(train_x[15])
+plt.show()
+
+
+# In[ ]:
+
+
+def plot_predictions(y_true, y_pred):    
+    f, ax = plt.subplots(2, 10, figsize=(15, 4))
+    for i in range(10):
+        ax[0][i].imshow(np.reshape(y_true[i], (50, 50, 3)), aspect='auto')
+        ax[1][i].imshow(np.reshape(y_pred[i], (50, 50, 3)), aspect='auto')
+    plt.tight_layout()
+
+
+# In[ ]:
+
+
+plot_predictions(train_x, p)
+
+
+# In[ ]:
+
+
+# Scatter with images instead of points
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+img_size = 50
+def imscatter(x, y, ax, imageData, zoom):
+    images = []
+    for i in range(len(x)):
+        x0, y0 = x[i], y[i]
+        # Convert to image
+        img = imageData[i]*255.
+        img = img.astype(np.uint8).reshape([img_size,img_size,3])
+        #img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
+        # Note: OpenCV uses BGR and plt uses RGB
+        image = OffsetImage(img, zoom=zoom)
+        ab = AnnotationBbox(image, (x0, y0), xycoords='data', frameon=False)
+        images.append(ax.add_artist(ab))
+    
+    ax.update_datalim(np.column_stack([x, y]))
+    ax.autoscale()
+
+
+# In[ ]:
+
+
+#https://github.com/despoisj/LatentSpaceVisualization/blob/master/visuals.py
+from sklearn import manifold
+
+def computeTSNEProjectionOfLatentSpace(X, X_encoded, display=True, save=True):
+    # Compute latent space representation
+    print("Computing latent space projection...")
+    #X_encoded = encoder.predict(X)
+
+    # Compute t-SNE embedding of latent space
+    print("Computing t-SNE embedding...")
+    tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
+    X_tsne = tsne.fit_transform(X_encoded)
+
+    # Plot images according to t-sne embedding
+    if display:
+        print("Plotting t-SNE visualization...")
+        fig, ax = plt.subplots(figsize=(15, 15))
+        ax = fig.add_subplot(111, facecolor='black')
+        imscatter(X_tsne[:, 0], X_tsne[:, 1], imageData=X, ax=ax, zoom=0.5)
+        if save:
+            fig.savefig('img/t-SNE-embedding_vae.png')
+        plt.show()
+    else:
+        return X_tsne
+
+
+# In[ ]:
+
+
+X_encoded = vae_encoder.predict(train_x[:1000])[2]
+#X_encoded.shape
+#need to reshape for TSNE
+
+
+# In[ ]:
+
+
+computeTSNEProjectionOfLatentSpace(train_x[:1000,], X_encoded[:1000,], display=True, save=True)
+
+
+# In[ ]:
+
+
+tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
+X_tsne = tsne.fit_transform(X_encoded[:1000,])
+
+
+# In[ ]:
+
+
+import pandas as pd
+df = pd.DataFrame()
+df['y'] = train_y_label[:1000]
+df['comp-1'] = X_tsne[:,0]
+df['comp-2'] = X_tsne[:,1]
+
+
+# In[ ]:
+
+
+fig, ax = plt.subplots(figsize=(15, 15))
+colors = {0:'blue', 1:'red'}
+
+ax.scatter(df["comp-1"], df["comp-2"], c=df['y'].map(colors), label=colors) 
+ax.legend()
+plt.show()
+
+
+# In[ ]:
+
+
+def computeTSNEProjectionOfPixelSpace(X, display=True):
+    # Compute t-SNE embedding of latent space
+    print("Computing t-SNE embedding...")
+    tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
+    X_tsne = tsne.fit_transform(X.reshape([-1, 50* 50* 3]))
+
+    # Plot images according to t-sne embedding
+    if display:
+        print("Plotting t-SNE visualization...")
+        fig, ax = plt.subplots(figsize=(15, 15))
+        ax = fig.add_subplot(111, facecolor='black')
+        imscatter(X_tsne[:, 0], X_tsne[:, 1], imageData=X, ax=ax, zoom=0.5)
+        fig.savefig('img/t-SNE_original_space.png')
+        plt.show()
+    else:
+        return X_tsne
+
+
+# In[ ]:
+
+
+computeTSNEProjectionOfPixelSpace(train_x[:1000], display=True)
+
+
+# In[ ]:
+
+
+def getReconstructedImages(X, encoder, decoder):
+    nbSamples = X.shape[0]
+    nbSquares = int(math.sqrt(nbSamples))
+    nbSquaresHeight = 2*nbSquares
+    nbSquaresWidth = nbSquaresHeight
+    resultImage = np.zeros((nbSquaresHeight*img_size,int(nbSquaresWidth*img_size/2),X.shape[-1]))
+
+    reconstructedX = decoder.predict(encoder.predict(X)[2])
+
+    for i in range(nbSamples) :     # 
+        original = X[i]
+        reconstruction = reconstructedX[i]
+        rowIndex = i%nbSquaresWidth
+        columnIndex = int((i-rowIndex)/nbSquaresHeight)
+        resultImage[rowIndex*img_size:(rowIndex+1)*img_size,columnIndex*2*img_size:(columnIndex+1)*2*img_size,:] = np.hstack([original,reconstruction])
+
+    return resultImage
+
+
+# In[ ]:
+
+
+# Reconstructions for samples in dataset
+def visualizeReconstructedImages(X_train, X_test, encoder, decoder, save=False):
+    trainReconstruction = getReconstructedImages(X_train,encoder, decoder)
+    testReconstruction = getReconstructedImages(X_test,encoder, decoder)
+
+    if not save:
+        print("Generating 10 image reconstructions...")
+
+    result = np.hstack([trainReconstruction,np.zeros([trainReconstruction.shape[0],5,trainReconstruction.shape[-1]]),testReconstruction])
+    result = (result*255.).astype(np.uint8)
+
+    if save:
+        fig, ax = plt.subplots(figsize=(15, 15))
+        plt.imshow(result)
+        fig.savefig('img/vae_reconstructions.png')
+    else:
+        plt.show()
+
+
+# In[ ]:
+
+
+visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decoder, save =True)
+
+
+# In[ ]:
+
+
+# Shows linear inteprolation in image space vs latent space
+def visualizeInterpolation(start, end, encoder, decoder, save=False, nbSteps=5):
+    print("Generating interpolations...")
+
+    # Create micro batch
+    X = np.array([start, end])
+
+    # Compute latent space projection
+    latentX = encoder.predict(X)
+    latentStart, latentEnd = latentX
+
+    # Get original image for comparison
+    startImage, endImage = X
+
+    vectors = []
+    normalImages = []
+    #Linear interpolation
+    alphaValues = np.linspace(0, 1, nbSteps)
+    for alpha in alphaValues:
+        # Latent space interpolation
+        vector = latentStart*(1-alpha) + latentEnd*alpha
+        vectors.append(vector)
+        # Image space interpolation
+        blendImage = cv2.addWeighted(startImage,1-alpha,endImage,alpha,0)
+        normalImages.append(blendImage)
+
+    # Decode latent space vectors
+    vectors = np.array(vectors)
+    reconstructions = decoder.predict(vectors)
+
+    # Put final image together
+    resultLatent = None
+    resultImage = None
+
+    for i in range(len(reconstructions)):
+        interpolatedImage = normalImages[i]*255
+        interpolatedImage = cv2.resize(interpolatedImage,(50,50))
+        interpolatedImage = interpolatedImage.astype(np.uint8)
+        resultImage = interpolatedImage if resultImage is None else np.hstack([resultImage,interpolatedImage])
+
+        reconstructedImage = reconstructions[i]*255.
+        #reconstructedImage = reconstructedImage.reshape([28,28])
+        #reconstructedImage = cv2.resize(reconstructedImage,(50,50))
+        reconstructedImage = reconstructedImage.astype(np.uint8)
+        resultLatent = reconstructedImage if resultLatent is None else np.hstack([resultLatent,reconstructedImage])
+    
+        result = np.vstack([resultImage,resultLatent])
+
+
+# In[ ]:
+
+
+# Create micro batch
+#X = np.array([start, end])
+X = np.array(train_x[0:100])
+# Compute latent space projection
+latentX = vae_encoder.predict(X)[2]
+latentX.shape
+
+
+# In[ ]:
+
+
+
+latentStart = latentX[0]
+latentEnd = latentX[1]
+# Get original image for comparison
+startImage, endImage = X
+
+vectors = []
+normalImages = []
+#Linear interpolation
+alphaValues = np.linspace(0, 1, 5)
+for alpha in alphaValues:
+    # Latent space interpolation
+    vector = latentStart*(1-alpha) + latentEnd*alpha
+    vectors.append(vector)
+    # Image space interpolation
+    blendImage = cv2.addWeighted(startImage,1-alpha,endImage,alpha,0)
+    normalImages.append(blendImage)
+
+# Decode latent space vectors
+vectors = np.array(vectors)
+reconstructions = vae_decoder.predict(vectors)
+
+# Put final image together
+resultLatent = None
+resultImage = None
+
+for i in range(len(reconstructions)):
+    interpolatedImage = normalImages[i]*255
+    interpolatedImage = cv2.resize(interpolatedImage,(50,50))
+    interpolatedImage = interpolatedImage.astype(np.uint8)
+    resultImage = interpolatedImage if resultImage is None else np.hstack([resultImage,interpolatedImage])
+
+    reconstructedImage = reconstructions[i]*255.
+    #reconstructedImage = reconstructedImage.reshape([28,28])
+    #reconstructedImage = cv2.resize(reconstructedImage,(50,50))
+    reconstructedImage = reconstructedImage.astype(np.uint8)
+    resultLatent = reconstructedImage if resultLatent is None else np.hstack([resultLatent,reconstructedImage])
+
+    result = np.vstack([resultImage,resultLatent])
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+# Computes A, B, C, A+B, A+B-C in latent space
+def visualizeArithmetics(a, b, c, encoder, decoder):
+    print("Computing arithmetics...")
+    # Create micro batch
+    X = np.array([a,b,c])
+
+    # Compute latent space projection
+    latentA, latentB, latentC = encoder.predict(X)
+
+    add = latentA+latentB
+    addSub = latentA+latentB-latentC
+
+    # Create micro batch
+    X = np.array([latentA,latentB,latentC,add,addSub])
+
+    # Compute reconstruction
+    reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub = decoder.predict(X)
+
+    cv2.imshow("Arithmetics in latent space",np.hstack([reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub]))
+    cv2.waitKey()
+
