@@ -234,7 +234,7 @@ class VAE(keras.Model):
            # )
             kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
             kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-            total_loss = (1000 * reconstruction_loss) + kl_loss
+            total_loss = reconstruction_loss + kl_loss
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
         self.total_loss_tracker.update_state(total_loss)
@@ -251,7 +251,7 @@ class VAE(keras.Model):
 
 
 vae = VAE(encoder=vae_encoder, decoder=vae_decoder)
-vae.compile(optimizer='RMSprop')
+vae.compile(optimizer='Adam')
 
 
 # 
@@ -263,7 +263,7 @@ model = vae
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(True)
 early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=2, restore_best_weights=True)
-history = model.fit(train_x, epochs=50, batch_size=250*2, callbacks=early_stop)
+history = model.fit(train_x, epochs=50, batch_size=250, callbacks=early_stop)
 
 
 # In[ ]:
