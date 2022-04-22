@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 # TO DO:
@@ -10,7 +10,7 @@
 # try with flattened inputs ?
 
 
-# In[ ]:
+# In[2]:
 
 
 # import libraries
@@ -27,10 +27,10 @@ import cv2
 from sklearn.model_selection import train_test_split
 from glob import glob
 import math
-#get_ipython().run_line_magic('matplotlib', 'inline')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 
-# In[ ]:
+# In[3]:
 
 
 import keras
@@ -41,7 +41,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras import backend as K
 
 
-# In[ ]:
+# In[4]:
 
 
 # import data
@@ -50,7 +50,7 @@ for filename in imagePatches[0:10]:
     print(filename)
 
 
-# In[ ]:
+# In[5]:
 
 
 class0 = [] # 0 = no cancer
@@ -63,7 +63,7 @@ for filename in imagePatches:
         class1.append(filename)
 
 
-# In[ ]:
+# In[6]:
 
 
 sampled_class0 = random.sample(class0, 78786)
@@ -71,7 +71,7 @@ sampled_class1 = random.sample(class1, 78786)
 len(sampled_class0)
 
 
-# In[ ]:
+# In[7]:
 
 
 from matplotlib.image import imread
@@ -88,14 +88,14 @@ def get_image_arrays(data, label):
     return img_arrays
 
 
-# In[ ]:
+# In[8]:
 
 
 class0_array = get_image_arrays(sampled_class0, 0)
 class1_array = get_image_arrays(sampled_class1, 1)
 
 
-# In[ ]:
+# In[9]:
 
 
 combined_data = np.concatenate((class0_array, class1_array))
@@ -103,7 +103,7 @@ combined_data = np.concatenate((class0_array, class1_array))
 #random.shuffle(combined_data)
 
 
-# In[ ]:
+# In[10]:
 
 
 X = []
@@ -114,7 +114,7 @@ for features, label in combined_data:
     y.append(label)
 
 
-# In[ ]:
+# In[11]:
 
 
 X = np.array(X).reshape(-1, 50, 50, 3)
@@ -124,7 +124,7 @@ print(X.shape)
 print(y.shape)
 
 
-# In[ ]:
+# In[12]:
 
 
 train_x, test_x, train_y, test_y = train_test_split(X, y, test_size = 0.2,
@@ -143,14 +143,14 @@ class_names = ('non-cancer','cancer')
 print(train_x.shape, test_x.shape, train_y.shape, test_y.shape)
 
 
-# In[ ]:
+# In[13]:
 
 
 print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[ ]:
+# In[14]:
 
 
 train_x = train_x / 255
@@ -159,7 +159,7 @@ print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[ ]:
+# In[15]:
 
 
 image_count = 10
@@ -172,7 +172,7 @@ for i in range(image_count):
   axs[i].set_title(class_names[train_y_label[random_idx]])
 
 
-# In[ ]:
+# In[16]:
 
 
 batch_size = 250
@@ -182,7 +182,7 @@ num_features = 7500#50*50*3
 latent_dim = 32
 
 
-# In[ ]:
+# In[17]:
 
 
 #vae = keras.models.load_model('models/vae.h5')
@@ -190,7 +190,7 @@ latent_dim = 32
 #decoder = keras.models.load_model('models/decoder.h5')
 
 
-# In[ ]:
+# In[18]:
 
 
 #vae = keras.models.load_model('models/vae.h5')
@@ -198,14 +198,15 @@ vae_encoder = keras.models.load_model('models/vae_encoder.h5')
 vae_decoder = keras.models.load_model('models/vae_decoder.h5')
 
 
-# In[ ]:
+# In[19]:
 
 
 class VAE(keras.Model):
-    def __init__(self, encoder, decoder, **kwargs):
+    def __init__(self, encoder, decoder, beta, **kwargs):
         super(VAE, self).__init__(**kwargs)
         self.encoder = encoder
         self.decoder = decoder
+        self.beta = beta
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
         self.reconstruction_loss_tracker = keras.metrics.Mean(
             name="reconstruction_loss"
@@ -234,7 +235,7 @@ class VAE(keras.Model):
            # )
             kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
             kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-            total_loss = reconstruction_loss + kl_loss
+            total_loss = reconstruction_loss + (self.beta * kl_loss)
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
         self.total_loss_tracker.update_state(total_loss)
@@ -247,23 +248,25 @@ class VAE(keras.Model):
         }
 
 
-# In[ ]:
+# In[21]:
 
 
-vae = VAE(encoder=vae_encoder, decoder=vae_decoder)
+beta_coeff = 10
+vae = VAE(encoder=vae_encoder, decoder=vae_decoder, beta = beta_coeff)
 vae.compile(optimizer='Adam')
 
 
 # 
 
-# In[ ]:
+# In[22]:
 
 
 model = vae
+epochs = 5
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(True)
-early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=2, restore_best_weights=True)
-history = model.fit(train_x, epochs=50, batch_size=250, callbacks=early_stop)
+early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)
+history = model.fit(train_x, epochs=epochs, batch_size=250, callbacks=early_stop)
 
 
 # In[ ]:
@@ -309,6 +312,12 @@ Train_Val_Plot(history.history['loss'],
 # In[ ]:
 
 
+vae.save_weights('weights/vae.h5')
+
+
+# In[ ]:
+
+
 import pickle
 
 with open('trainHistoryDict.txt', 'wb') as file_pi:
@@ -318,7 +327,9 @@ with open('trainHistoryDict.txt', 'wb') as file_pi:
 # In[ ]:
 
 
+import pandas as pd
 
+object = pd.read_pickle(r'trainHistoryDict.txt')
 
 
 # In[ ]:
@@ -333,7 +344,7 @@ print(train_y[0])
 print(train_y_label[0])
 
 
-# In[ ]:
+# In[24]:
 
 
 p = vae.predict(train_x[:1000])
@@ -348,10 +359,10 @@ p[0].shape
 # In[ ]:
 
 
-#vae.save_weights('weights/vae.h5')
 
 
-# In[44]:
+
+# In[22]:
 
 
 vae(np.zeros((1,50,50,3)))
@@ -364,7 +375,7 @@ vae.load_weights('weights/vae.h5')
 
 
 
-# In[45]:
+# In[25]:
 
 
 plt.imshow(p[0])
@@ -378,7 +389,7 @@ plt.imshow(train_x[15])
 plt.show()
 
 
-# In[ ]:
+# In[26]:
 
 
 def plot_predictions(y_true, y_pred):    
@@ -389,13 +400,13 @@ def plot_predictions(y_true, y_pred):
     plt.tight_layout()
 
 
-# In[ ]:
+# In[27]:
 
 
-plot_predictions(train_x, p)
+plot_predictions(train_x[:100], p)
 
 
-# In[ ]:
+# In[28]:
 
 
 # Scatter with images instead of points
@@ -441,7 +452,7 @@ def computeTSNEProjectionOfLatentSpace(X, X_encoded, display=True, save=True):
         ax = fig.add_subplot(111, facecolor='black')
         imscatter(X_tsne[:, 0], X_tsne[:, 1], imageData=X, ax=ax, zoom=0.5)
         if save:
-            fig.savefig('img/t-SNE-embedding_vae.png')
+            fig.savefig('img/t-SNE-embedding_vae_epochs:{}_beta:{}.png'.format(epochs, beta_coeff))
         plt.show()
     else:
         return X_tsne
@@ -451,21 +462,29 @@ def computeTSNEProjectionOfLatentSpace(X, X_encoded, display=True, save=True):
 
 
 X_encoded = vae_encoder.predict(train_x[:1000])[2]
-#X_encoded.shape
+X_encoded.shape
 #need to reshape for TSNE
+X_encoded_flatten = X_encoded.reshape(-1,25*25*3)
+X_encoded_flatten.shape
 
 
-# In[ ]:
+# In[103]:
 
 
-computeTSNEProjectionOfLatentSpace(train_x[:1000,], X_encoded[:1000,], display=True, save=True)
+
 
 
 # In[ ]:
 
 
 tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
-X_tsne = tsne.fit_transform(X_encoded[:1000,])
+X_tsne = tsne.fit_transform(X_encoded_flatten)
+
+
+# In[ ]:
+
+
+computeTSNEProjectionOfLatentSpace(train_x[:1000,], X_encoded_flatten, display=True, save=True)
 
 
 # In[ ]:
@@ -516,10 +535,11 @@ def computeTSNEProjectionOfPixelSpace(X, display=True):
 computeTSNEProjectionOfPixelSpace(train_x[:1000], display=True)
 
 
-# In[ ]:
+# In[29]:
 
 
 def getReconstructedImages(X, encoder, decoder):
+    img_size = 50
     nbSamples = X.shape[0]
     nbSquares = int(math.sqrt(nbSamples))
     nbSquaresHeight = 2*nbSquares
@@ -543,17 +563,20 @@ def getReconstructedImages(X, encoder, decoder):
 
 # Reconstructions for samples in dataset
 def visualizeReconstructedImages(X_train, X_test, encoder, decoder, save=False):
-    trainReconstruction = getReconstructedImages(X_train,encoder, decoder)
-    testReconstruction = getReconstructedImages(X_test,encoder, decoder)
+    trainReconstruction = getReconstructedImages(X_train, encoder, decoder)
+    testReconstruction = getReconstructedImages(X_test, encoder, decoder)
 
     if not save:
         print("Generating 10 image reconstructions...")
 
-    result = np.hstack([trainReconstruction,np.zeros([trainReconstruction.shape[0],5,trainReconstruction.shape[-1]]),testReconstruction])
+    result = np.hstack([trainReconstruction,
+            np.zeros([trainReconstruction.shape[0],5,
+            trainReconstruction.shape[-1]]),
+            testReconstruction])
     result = (result*255.).astype(np.uint8)
 
     if save:
-        fig, ax = plt.subplots(figsize=(15, 15))
+        fig, _ = plt.subplots(figsize=(15, 15))
         plt.imshow(result)
         fig.savefig('img/vae_reconstructions.png')
     else:
@@ -563,13 +586,78 @@ def visualizeReconstructedImages(X_train, X_test, encoder, decoder, save=False):
 # In[ ]:
 
 
-visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decoder, save =True)
+visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decoder, save = True)
 
 
-# In[ ]:
+# In[31]:
 
 
-# Shows linear inteprolation in image space vs latent space
+noise = np.random.normal(size=(1, 25, 25, 3))
+#noise = noise.reshape((1,25,25,3))
+decoded = vae_decoder.predict(noise)
+plt.imshow((decoded[0]*255.).astype(np.uint8))
+
+
+# In[32]:
+
+
+noise = []
+for i in range(0,1875):
+    noise.append( random.randint(-4, 4) )
+noise = np.array(noise)
+noise = noise.reshape(1, 25, 25, 3)
+decoded = vae_decoder.predict(noise)
+plt.imshow((decoded[0]))
+
+
+# In[86]:
+
+
+def generate_images(decoder):    
+    _, ax = plt.subplots(2, 10, figsize=(15, 4))
+    for i in range(2):
+        for j in range(10):
+            noise = []
+            for k in range(0,1875):
+                noise.append( random.randint(-1.5, 1.5) )
+                
+            noise = np.array(noise)
+            noise = noise.reshape(1, 25, 25, 3)
+
+            decoded = vae_decoder.predict(noise)
+            ax[i][j].imshow(decoded[0], aspect='auto')
+       
+    plt.tight_layout()
+
+
+# In[92]:
+
+
+def generate_images(decoder):    
+    _, ax = plt.subplots(2, 10, figsize=(15, 4))
+    for i in range(2):
+        for j in range(10):
+            noise = np.random.normal(loc=0, scale = 1, size=1875)
+                
+            #noise = np.array(noise)
+            noise = noise.reshape(1, 25, 25, 3)
+
+            decoded = vae_decoder.predict(noise).squeeze()
+            ax[i][j].imshow( (decoded*255.).astype(np.uint8) )
+       
+    plt.tight_layout()
+
+
+# In[93]:
+
+
+generate_images(vae_decoder)
+
+
+# In[41]:
+
+
+#Shows linear inteprolation in image space vs latent space
 def visualizeInterpolation(start, end, encoder, decoder, save=False, nbSteps=5):
     print("Generating interpolations...")
 
@@ -577,7 +665,7 @@ def visualizeInterpolation(start, end, encoder, decoder, save=False, nbSteps=5):
     X = np.array([start, end])
 
     # Compute latent space projection
-    latentX = encoder.predict(X)
+    latentX = encoder.predict(X)[2]
     latentStart, latentEnd = latentX
 
     # Get original image for comparison
@@ -592,7 +680,7 @@ def visualizeInterpolation(start, end, encoder, decoder, save=False, nbSteps=5):
         vector = latentStart*(1-alpha) + latentEnd*alpha
         vectors.append(vector)
         # Image space interpolation
-        blendImage = cv2.addWeighted(startImage,1-alpha,endImage,alpha,0)
+        blendImage = cv2.addWeighted(startImage, 1-alpha, endImage, alpha, 0)
         normalImages.append(blendImage)
 
     # Decode latent space vectors
@@ -610,96 +698,131 @@ def visualizeInterpolation(start, end, encoder, decoder, save=False, nbSteps=5):
         resultImage = interpolatedImage if resultImage is None else np.hstack([resultImage,interpolatedImage])
 
         reconstructedImage = reconstructions[i]*255.
-        #reconstructedImage = reconstructedImage.reshape([28,28])
+        reconstructedImage = reconstructedImage.reshape(50,50,3)
         #reconstructedImage = cv2.resize(reconstructedImage,(50,50))
         reconstructedImage = reconstructedImage.astype(np.uint8)
         resultLatent = reconstructedImage if resultLatent is None else np.hstack([resultLatent,reconstructedImage])
-    
-        result = np.vstack([resultImage,resultLatent])
-
-
-# In[ ]:
-
-
-# Create micro batch
-#X = np.array([start, end])
-X = np.array(train_x[0:100])
-# Compute latent space projection
-latentX = vae_encoder.predict(X)[2]
-latentX.shape
-
-
-# In[ ]:
-
-
-
-latentStart = latentX[0]
-latentEnd = latentX[1]
-# Get original image for comparison
-startImage, endImage = X
-
-vectors = []
-normalImages = []
-#Linear interpolation
-alphaValues = np.linspace(0, 1, 5)
-for alpha in alphaValues:
-    # Latent space interpolation
-    vector = latentStart*(1-alpha) + latentEnd*alpha
-    vectors.append(vector)
-    # Image space interpolation
-    blendImage = cv2.addWeighted(startImage,1-alpha,endImage,alpha,0)
-    normalImages.append(blendImage)
-
-# Decode latent space vectors
-vectors = np.array(vectors)
-reconstructions = vae_decoder.predict(vectors)
-
-# Put final image together
-resultLatent = None
-resultImage = None
-
-for i in range(len(reconstructions)):
-    interpolatedImage = normalImages[i]*255
-    interpolatedImage = cv2.resize(interpolatedImage,(50,50))
-    interpolatedImage = interpolatedImage.astype(np.uint8)
-    resultImage = interpolatedImage if resultImage is None else np.hstack([resultImage,interpolatedImage])
-
-    reconstructedImage = reconstructions[i]*255.
-    #reconstructedImage = reconstructedImage.reshape([28,28])
-    #reconstructedImage = cv2.resize(reconstructedImage,(50,50))
-    reconstructedImage = reconstructedImage.astype(np.uint8)
-    resultLatent = reconstructedImage if resultLatent is None else np.hstack([resultLatent,reconstructedImage])
 
     result = np.vstack([resultImage,resultLatent])
+    _, ax = plt.subplots(figsize=(18, 4))
+    ax.imshow(result)
+    plt.tight_layout()
+       #    plt.imshow(result)
 
 
-# In[ ]:
+# In[95]:
 
 
+visualizeInterpolation(test_x[random.randint(0,train_x.shape[0])], train_x[random.randint(0, train_x.shape[0])],
+                     vae_encoder, vae_decoder, save=False, nbSteps=10)
 
 
-
-# In[ ]:
+# In[45]:
 
 
 # Computes A, B, C, A+B, A+B-C in latent space
 def visualizeArithmetics(a, b, c, encoder, decoder):
     print("Computing arithmetics...")
     # Create micro batch
-    X = np.array([a,b,c])
+    X = np.array([a, b, c])
 
     # Compute latent space projection
-    latentA, latentB, latentC = encoder.predict(X)
+    latentA, latentB, latentC = encoder.predict(X)[2]
 
     add = latentA+latentB
     addSub = latentA+latentB-latentC
 
     # Create micro batch
-    X = np.array([latentA,latentB,latentC,add,addSub])
+    X = np.array([latentA, latentB, latentC, add,addSub])
 
     # Compute reconstruction
     reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub = decoder.predict(X)
+    _, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(np.hstack([reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub]))
+    plt.tight_layout()
+    #plt.imshow(np.hstack([reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub]))
+    #cv2.waitKey()
 
-    cv2.imshow("Arithmetics in latent space",np.hstack([reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub]))
-    cv2.waitKey()
+
+# In[46]:
+
+
+#visualizeArithmetics(test_x[random.randint(0,test_x.shape[0])],test_x[random.randint(0,test_x.shape[0])], test_x[random.randint(0, test_x.shape[0])], vae_encoder, vae_decoder)
+visualizeArithmetics(train_x[random.randint(0,train_x.shape[0])],train_x[random.randint(0,train_x.shape[0])], train_x[random.randint(0, train_x.shape[0])], vae_encoder, vae_decoder)
+
+
+# In[ ]:
+
+
+def bilinear_interpolation(x, y, points):
+    '''Interpolate (x,y) from values associated with four points.
+
+    The four points are a list of four triplets:  (x, y, value).
+    The four points can be in any order.  They should form a rectangle.
+
+        >>> bilinear_interpolation(12, 5.5,
+        ...                        [(10, 4, 100),
+        ...                         (20, 4, 200),
+        ...                         (10, 6, 150),
+        ...                         (20, 6, 300)])
+        165.0
+
+    '''
+    # See formula at:  http://en.wikipedia.org/wiki/Bilinear_interpolation
+
+    points = sorted(points)               # order points by x, then by y
+    (x1, y1, q11), (_x1, y2, q12), (x2, _y1, q21), (_x2, _y2, q22) = points
+
+    if x1 != _x1 or x2 != _x2 or y1 != _y1 or y2 != _y2:
+        raise ValueError('points do not form a rectangle')
+    if not x1 <= x <= x2 or not y1 <= y <= y2:
+        raise ValueError('(x, y) not within the rectangle')
+
+    return (q11 * (x2 - x) * (y2 - y) +
+            q21 * (x - x1) * (y2 - y) +
+            q12 * (x2 - x) * (y - y1) +
+            q22 * (x - x1) * (y - y1)
+           ) / ((x2 - x1) * (y2 - y1) + 0.0)
+
+
+# In[96]:
+
+
+#https://www.researchgate.net/publication/324057819_Comparing_Generative_Adversarial_Network_Techniques_for_Image_Creation_and_Modification/link/5abcd63caca27222c7543718/download
+#bilinear interpolation
+#1. sample 4 random real images (corners)
+#2. encode them 
+#2b t-sne?
+#3. use bilinear interpolation between these images
+#4. decode the interpolations
+input1 = train_x[random.randint(0,train_x.shape[0])]
+input2 = train_x[random.randint(0,train_x.shape[0])]
+input3 = train_x[random.randint(0,train_x.shape[0])]
+input4 = train_x[random.randint(0,train_x.shape[0])]
+
+X = np.array([input1, input2, input3, input4])
+
+# Compute latent space projection
+latentX = vae_encoder.predict(X)[2]
+latent1, latent2, latent3, latent4 = latentX
+
+
+# In[97]:
+
+
+xx, yy = np.meshgrid(latent1, latent2)
+
+
+# In[98]:
+
+
+import scipy
+z = (xx+yy) / 2
+f = scipy.interpolate.interp2d(latent1, latent2, z, kind='linear')
+
+
+# In[102]:
+
+
+
 
