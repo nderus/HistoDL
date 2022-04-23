@@ -27,7 +27,6 @@ import cv2
 from sklearn.model_selection import train_test_split
 from glob import glob
 import math
-get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 # In[3]:
@@ -162,6 +161,7 @@ print('Max value: ', train_x.max())
 # In[15]:
 
 
+# visualize random images from data
 image_count = 10
 
 _, axs = plt.subplots(1, image_count, figsize=(20, 20))
@@ -179,7 +179,7 @@ batch_size = 250
 input_shape = (50, 50, 3)
 
 num_features = 7500#50*50*3
-latent_dim = 32
+latent_dim = 512
 
 
 # In[17]:
@@ -193,7 +193,7 @@ latent_dim = 32
 # In[18]:
 
 
-#vae = keras.models.load_model('models/vae.h5')
+# load encoder and decoder models
 vae_encoder = keras.models.load_model('models/vae_encoder.h5')
 vae_decoder = keras.models.load_model('models/vae_decoder.h5')
 
@@ -248,28 +248,28 @@ class VAE(keras.Model):
         }
 
 
-# In[21]:
+# In[20]:
 
 
-beta_coeff = 10
+beta_coeff = 1
 vae = VAE(encoder=vae_encoder, decoder=vae_decoder, beta = beta_coeff)
 vae.compile(optimizer='Adam')
 
 
 # 
 
-# In[22]:
+# In[21]:
 
 
 model = vae
-epochs = 5
+epochs = 50
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(True)
 early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)
 history = model.fit(train_x, epochs=epochs, batch_size=250, callbacks=early_stop)
 
 
-# In[ ]:
+# In[37]:
 
 
 def Train_Val_Plot(loss, reconstruction_loss, kl_loss):
@@ -309,13 +309,13 @@ Train_Val_Plot(history.history['loss'],
 
 # 
 
-# In[ ]:
+# In[38]:
 
 
-vae.save_weights('weights/vae.h5')
+model.save_weights('weights/vae.h5')
 
 
-# In[ ]:
+# In[24]:
 
 
 import pickle
@@ -324,7 +324,7 @@ with open('trainHistoryDict.txt', 'wb') as file_pi:
     pickle.dump(history.history, file_pi)
 
 
-# In[ ]:
+# In[25]:
 
 
 import pandas as pd
@@ -332,7 +332,7 @@ import pandas as pd
 object = pd.read_pickle(r'trainHistoryDict.txt')
 
 
-# In[ ]:
+# In[26]:
 
 
 plt.imshow(train_x[0])
@@ -344,13 +344,13 @@ print(train_y[0])
 print(train_y_label[0])
 
 
-# In[24]:
+# In[27]:
 
 
 p = vae.predict(train_x[:1000])
 
 
-# In[ ]:
+# In[28]:
 
 
 p[0].shape
@@ -362,7 +362,7 @@ p[0].shape
 
 
 
-# In[22]:
+# In[29]:
 
 
 vae(np.zeros((1,50,50,3)))
@@ -375,21 +375,21 @@ vae.load_weights('weights/vae.h5')
 
 
 
-# In[25]:
+# In[39]:
 
 
 plt.imshow(p[0])
 plt.show()
 
 
-# In[ ]:
+# In[40]:
 
 
 plt.imshow(train_x[15])
 plt.show()
 
 
-# In[26]:
+# In[41]:
 
 
 def plot_predictions(y_true, y_pred):    
@@ -400,13 +400,13 @@ def plot_predictions(y_true, y_pred):
     plt.tight_layout()
 
 
-# In[27]:
+# In[42]:
 
 
 plot_predictions(train_x[:100], p)
 
 
-# In[28]:
+# In[43]:
 
 
 # Scatter with images instead of points
@@ -429,7 +429,7 @@ def imscatter(x, y, ax, imageData, zoom):
     ax.autoscale()
 
 
-# In[ ]:
+# In[44]:
 
 
 #https://github.com/despoisj/LatentSpaceVisualization/blob/master/visuals.py
@@ -458,36 +458,38 @@ def computeTSNEProjectionOfLatentSpace(X, X_encoded, display=True, save=True):
         return X_tsne
 
 
-# In[ ]:
+# In[48]:
 
 
 X_encoded = vae_encoder.predict(train_x[:1000])[2]
 X_encoded.shape
 #need to reshape for TSNE
-X_encoded_flatten = X_encoded.reshape(-1,25*25*3)
+#X_encoded_flatten = X_encoded.reshape(-1,25*25*3)
+#X_encoded_flatten.shape
+X_encoded_flatten = X_encoded
 X_encoded_flatten.shape
 
 
-# In[103]:
-
-
-
-
-
 # In[ ]:
+
+
+
+
+
+# In[49]:
 
 
 tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
 X_tsne = tsne.fit_transform(X_encoded_flatten)
 
 
-# In[ ]:
+# In[50]:
 
 
 computeTSNEProjectionOfLatentSpace(train_x[:1000,], X_encoded_flatten, display=True, save=True)
 
 
-# In[ ]:
+# In[51]:
 
 
 import pandas as pd
@@ -497,7 +499,7 @@ df['comp-1'] = X_tsne[:,0]
 df['comp-2'] = X_tsne[:,1]
 
 
-# In[ ]:
+# In[52]:
 
 
 fig, ax = plt.subplots(figsize=(15, 15))
@@ -508,7 +510,7 @@ ax.legend()
 plt.show()
 
 
-# In[ ]:
+# In[53]:
 
 
 def computeTSNEProjectionOfPixelSpace(X, display=True):
@@ -529,13 +531,13 @@ def computeTSNEProjectionOfPixelSpace(X, display=True):
         return X_tsne
 
 
-# In[ ]:
+# In[55]:
 
 
 computeTSNEProjectionOfPixelSpace(train_x[:1000], display=True)
 
 
-# In[29]:
+# In[56]:
 
 
 def getReconstructedImages(X, encoder, decoder):
@@ -558,7 +560,7 @@ def getReconstructedImages(X, encoder, decoder):
     return resultImage
 
 
-# In[ ]:
+# In[57]:
 
 
 # Reconstructions for samples in dataset
@@ -578,18 +580,18 @@ def visualizeReconstructedImages(X_train, X_test, encoder, decoder, save=False):
     if save:
         fig, _ = plt.subplots(figsize=(15, 15))
         plt.imshow(result)
-        fig.savefig('img/vae_reconstructions.png')
+        fig.savefig('img/vae_reconstructions_epochs:{}_beta:{}.png'.format(epochs, beta_coeff))
     else:
         plt.show()
 
 
-# In[ ]:
+# In[58]:
 
 
 visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decoder, save = True)
 
 
-# In[31]:
+# In[59]:
 
 
 noise = np.random.normal(size=(1, 25, 25, 3))
@@ -598,7 +600,7 @@ decoded = vae_decoder.predict(noise)
 plt.imshow((decoded[0]*255.).astype(np.uint8))
 
 
-# In[32]:
+# In[ ]:
 
 
 noise = []
@@ -610,7 +612,7 @@ decoded = vae_decoder.predict(noise)
 plt.imshow((decoded[0]))
 
 
-# In[86]:
+# In[ ]:
 
 
 def generate_images(decoder):    
@@ -630,7 +632,7 @@ def generate_images(decoder):
     plt.tight_layout()
 
 
-# In[92]:
+# In[ ]:
 
 
 def generate_images(decoder):    
@@ -648,13 +650,13 @@ def generate_images(decoder):
     plt.tight_layout()
 
 
-# In[93]:
+# In[ ]:
 
 
 generate_images(vae_decoder)
 
 
-# In[41]:
+# In[ ]:
 
 
 #Shows linear inteprolation in image space vs latent space
@@ -704,20 +706,24 @@ def visualizeInterpolation(start, end, encoder, decoder, save=False, nbSteps=5):
         resultLatent = reconstructedImage if resultLatent is None else np.hstack([resultLatent,reconstructedImage])
 
     result = np.vstack([resultImage,resultLatent])
-    _, ax = plt.subplots(figsize=(18, 4))
+    fig, ax = plt.subplots(figsize=(18, 4))
     ax.imshow(result)
     plt.tight_layout()
        #    plt.imshow(result)
+    if save:
+        
+        fig.savefig('img/vector_interpolation_epochs:{}_beta:{}.png'.format(epochs, beta_coeff))
+    
 
 
-# In[95]:
+# In[ ]:
 
 
-visualizeInterpolation(test_x[random.randint(0,train_x.shape[0])], train_x[random.randint(0, train_x.shape[0])],
-                     vae_encoder, vae_decoder, save=False, nbSteps=10)
+visualizeInterpolation(train_x[random.randint(0,train_x.shape[0])], train_x[random.randint(0, train_x.shape[0])],
+                     vae_encoder, vae_decoder, save=True, nbSteps=10)
 
 
-# In[45]:
+# In[ ]:
 
 
 # Computes A, B, C, A+B, A+B-C in latent space
@@ -744,7 +750,7 @@ def visualizeArithmetics(a, b, c, encoder, decoder):
     #cv2.waitKey()
 
 
-# In[46]:
+# In[ ]:
 
 
 #visualizeArithmetics(test_x[random.randint(0,test_x.shape[0])],test_x[random.randint(0,test_x.shape[0])], test_x[random.randint(0, test_x.shape[0])], vae_encoder, vae_decoder)
@@ -785,7 +791,7 @@ def bilinear_interpolation(x, y, points):
            ) / ((x2 - x1) * (y2 - y1) + 0.0)
 
 
-# In[96]:
+# In[ ]:
 
 
 #https://www.researchgate.net/publication/324057819_Comparing_Generative_Adversarial_Network_Techniques_for_Image_Creation_and_Modification/link/5abcd63caca27222c7543718/download
@@ -807,13 +813,13 @@ latentX = vae_encoder.predict(X)[2]
 latent1, latent2, latent3, latent4 = latentX
 
 
-# In[97]:
+# In[ ]:
 
 
 xx, yy = np.meshgrid(latent1, latent2)
 
 
-# In[98]:
+# In[ ]:
 
 
 import scipy
@@ -821,7 +827,7 @@ z = (xx+yy) / 2
 f = scipy.interpolate.interp2d(latent1, latent2, z, kind='linear')
 
 
-# In[102]:
+# In[ ]:
 
 
 
