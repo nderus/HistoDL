@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 # TO DO:
@@ -10,7 +10,7 @@
 # try with flattened inputs ?
 
 
-# In[2]:
+# In[ ]:
 
 
 # import libraries
@@ -27,9 +27,10 @@ import cv2
 from sklearn.model_selection import train_test_split
 from glob import glob
 import math
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 
-# In[3]:
+# In[ ]:
 
 
 import keras
@@ -40,7 +41,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras import backend as K
 
 
-# In[4]:
+# In[ ]:
 
 
 # import data
@@ -49,7 +50,7 @@ for filename in imagePatches[0:10]:
     print(filename)
 
 
-# In[5]:
+# In[ ]:
 
 
 class0 = [] # 0 = no cancer
@@ -62,7 +63,7 @@ for filename in imagePatches:
         class1.append(filename)
 
 
-# In[6]:
+# In[ ]:
 
 
 sampled_class0 = random.sample(class0, 78786)
@@ -70,7 +71,7 @@ sampled_class1 = random.sample(class1, 78786)
 len(sampled_class0)
 
 
-# In[7]:
+# In[ ]:
 
 
 from matplotlib.image import imread
@@ -87,14 +88,14 @@ def get_image_arrays(data, label):
     return img_arrays
 
 
-# In[8]:
+# In[9]:
 
 
 class0_array = get_image_arrays(sampled_class0, 0)
 class1_array = get_image_arrays(sampled_class1, 1)
 
 
-# In[9]:
+# In[10]:
 
 
 combined_data = np.concatenate((class0_array, class1_array))
@@ -102,7 +103,7 @@ combined_data = np.concatenate((class0_array, class1_array))
 #random.shuffle(combined_data)
 
 
-# In[10]:
+# In[11]:
 
 
 X = []
@@ -113,7 +114,7 @@ for features, label in combined_data:
     y.append(label)
 
 
-# In[11]:
+# In[12]:
 
 
 X = np.array(X).reshape(-1, 50, 50, 3)
@@ -123,7 +124,7 @@ print(X.shape)
 print(y.shape)
 
 
-# In[12]:
+# In[13]:
 
 
 train_x, test_x, train_y, test_y = train_test_split(X, y, test_size = 0.2,
@@ -142,14 +143,14 @@ class_names = ('non-cancer','cancer')
 print(train_x.shape, test_x.shape, train_y.shape, test_y.shape)
 
 
-# In[13]:
+# In[14]:
 
 
 print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[14]:
+# In[15]:
 
 
 train_x = train_x / 255
@@ -158,7 +159,7 @@ print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[15]:
+# In[16]:
 
 
 # visualize random images from data
@@ -172,7 +173,7 @@ for i in range(image_count):
   axs[i].set_title(class_names[train_y_label[random_idx]])
 
 
-# In[16]:
+# In[17]:
 
 
 batch_size = 250
@@ -182,7 +183,7 @@ num_features = 7500#50*50*3
 latent_dim = 512
 
 
-# In[17]:
+# In[18]:
 
 
 #vae = keras.models.load_model('models/vae.h5')
@@ -190,7 +191,7 @@ latent_dim = 512
 #decoder = keras.models.load_model('models/decoder.h5')
 
 
-# In[18]:
+# In[23]:
 
 
 # load encoder and decoder models
@@ -198,7 +199,7 @@ vae_encoder = keras.models.load_model('models/vae_encoder.h5')
 vae_decoder = keras.models.load_model('models/vae_decoder.h5')
 
 
-# In[19]:
+# In[24]:
 
 
 class VAE(keras.Model):
@@ -224,15 +225,14 @@ class VAE(keras.Model):
             self.reconstruction_loss_tracker,
             self.kl_loss_tracker,
         ]
-
+    #removed tf.reduce_sum(MSE)
     def train_step(self, data):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encoder(data)
             reconstruction = self.decoder(z)
-            reconstruction_loss = tf.reduce_sum(
-                    keras.losses.MSE(data, reconstruction), axis=(1, 2) # mod
-                )
-           # )
+            reconstruction_loss = tf.reduce_sum(keras.losses.MSE(data, reconstruction), axis=(1,2)) # mod 
+                
+            #reconstruction_loss *= 50*50
             kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
             kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
             total_loss = reconstruction_loss + (self.beta * kl_loss)
@@ -248,17 +248,19 @@ class VAE(keras.Model):
         }
 
 
-# In[20]:
+# In[25]:
 
 
 beta_coeff = 1
 vae = VAE(encoder=vae_encoder, decoder=vae_decoder, beta = beta_coeff)
 vae.compile(optimizer='Adam')
+#vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001))
+#plot_model(vae, show_shapes=True, show_layer_names=True,expand_nested=True)
 
 
 # 
 
-# In[21]:
+# In[27]:
 
 
 model = vae
@@ -266,10 +268,10 @@ epochs = 50
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(True)
 early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)
-history = model.fit(train_x, epochs=epochs, batch_size=250, callbacks=early_stop)
+history = model.fit(train_x, epochs=epochs, batch_size=250, callbacks=early_stop) 
 
 
-# In[37]:
+# In[ ]:
 
 
 def Train_Val_Plot(loss, reconstruction_loss, kl_loss):
@@ -309,13 +311,13 @@ Train_Val_Plot(history.history['loss'],
 
 # 
 
-# In[38]:
+# In[ ]:
 
 
 model.save_weights('weights/vae.h5')
 
 
-# In[24]:
+# In[ ]:
 
 
 import pickle
@@ -324,7 +326,7 @@ with open('trainHistoryDict.txt', 'wb') as file_pi:
     pickle.dump(history.history, file_pi)
 
 
-# In[25]:
+# In[ ]:
 
 
 import pandas as pd
@@ -332,7 +334,13 @@ import pandas as pd
 object = pd.read_pickle(r'trainHistoryDict.txt')
 
 
-# In[26]:
+# In[ ]:
+
+
+print(object)
+
+
+# In[ ]:
 
 
 plt.imshow(train_x[0])
@@ -344,13 +352,13 @@ print(train_y[0])
 print(train_y_label[0])
 
 
-# In[27]:
+# In[ ]:
 
 
-p = vae.predict(train_x[:1000])
+p = model.predict(train_x[:1000])
 
 
-# In[28]:
+# In[ ]:
 
 
 p[0].shape
@@ -362,7 +370,7 @@ p[0].shape
 
 
 
-# In[29]:
+# In[ ]:
 
 
 vae(np.zeros((1,50,50,3)))
@@ -375,21 +383,21 @@ vae.load_weights('weights/vae.h5')
 
 
 
-# In[39]:
+# In[ ]:
 
 
-plt.imshow(p[0])
+plt.imshow(p[1])
 plt.show()
 
 
-# In[40]:
+# In[ ]:
 
 
 plt.imshow(train_x[15])
 plt.show()
 
 
-# In[41]:
+# In[ ]:
 
 
 def plot_predictions(y_true, y_pred):    
@@ -400,13 +408,13 @@ def plot_predictions(y_true, y_pred):
     plt.tight_layout()
 
 
-# In[42]:
+# In[ ]:
 
 
 plot_predictions(train_x[:100], p)
 
 
-# In[43]:
+# In[ ]:
 
 
 # Scatter with images instead of points
@@ -429,7 +437,7 @@ def imscatter(x, y, ax, imageData, zoom):
     ax.autoscale()
 
 
-# In[44]:
+# In[ ]:
 
 
 #https://github.com/despoisj/LatentSpaceVisualization/blob/master/visuals.py
@@ -458,7 +466,7 @@ def computeTSNEProjectionOfLatentSpace(X, X_encoded, display=True, save=True):
         return X_tsne
 
 
-# In[48]:
+# In[ ]:
 
 
 X_encoded = vae_encoder.predict(train_x[:1000])[2]
@@ -476,20 +484,20 @@ X_encoded_flatten.shape
 
 
 
-# In[49]:
+# In[ ]:
 
 
 tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
 X_tsne = tsne.fit_transform(X_encoded_flatten)
 
 
-# In[50]:
+# In[ ]:
 
 
 computeTSNEProjectionOfLatentSpace(train_x[:1000,], X_encoded_flatten, display=True, save=True)
 
 
-# In[51]:
+# In[ ]:
 
 
 import pandas as pd
@@ -499,7 +507,7 @@ df['comp-1'] = X_tsne[:,0]
 df['comp-2'] = X_tsne[:,1]
 
 
-# In[52]:
+# In[ ]:
 
 
 fig, ax = plt.subplots(figsize=(15, 15))
@@ -510,7 +518,7 @@ ax.legend()
 plt.show()
 
 
-# In[53]:
+# In[ ]:
 
 
 def computeTSNEProjectionOfPixelSpace(X, display=True):
@@ -531,13 +539,13 @@ def computeTSNEProjectionOfPixelSpace(X, display=True):
         return X_tsne
 
 
-# In[55]:
+# In[ ]:
 
 
 computeTSNEProjectionOfPixelSpace(train_x[:1000], display=True)
 
 
-# In[56]:
+# In[ ]:
 
 
 def getReconstructedImages(X, encoder, decoder):
@@ -560,7 +568,7 @@ def getReconstructedImages(X, encoder, decoder):
     return resultImage
 
 
-# In[57]:
+# In[ ]:
 
 
 # Reconstructions for samples in dataset
@@ -585,13 +593,13 @@ def visualizeReconstructedImages(X_train, X_test, encoder, decoder, save=False):
         plt.show()
 
 
-# In[58]:
+# In[ ]:
 
 
 visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decoder, save = True)
 
 
-# In[59]:
+# In[ ]:
 
 
 noise = np.random.normal(size=(1, 25, 25, 3))
