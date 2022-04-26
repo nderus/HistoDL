@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[54]:
 
 
 # TO DO:
@@ -10,7 +10,7 @@
 # try with flattened inputs ?
 
 
-# In[ ]:
+# In[62]:
 
 
 # import libraries
@@ -29,7 +29,9 @@ from glob import glob
 import math
 
 
-# In[ ]:
+
+
+# In[56]:
 
 
 import keras
@@ -40,7 +42,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras import backend as K
 
 
-# In[ ]:
+# In[57]:
 
 
 # import data
@@ -49,7 +51,7 @@ for filename in imagePatches[0:10]:
     print(filename)
 
 
-# In[ ]:
+# In[58]:
 
 
 class0 = [] # 0 = no cancer
@@ -62,7 +64,7 @@ for filename in imagePatches:
         class1.append(filename)
 
 
-# In[ ]:
+# In[59]:
 
 
 sampled_class0 = random.sample(class0, 78786)
@@ -70,7 +72,7 @@ sampled_class1 = random.sample(class1, 78786)
 len(sampled_class0)
 
 
-# In[ ]:
+# In[60]:
 
 
 from matplotlib.image import imread
@@ -87,7 +89,7 @@ def get_image_arrays(data, label):
     return img_arrays
 
 
-# In[ ]:
+# In[61]:
 
 
 class0_array = get_image_arrays(sampled_class0, 0)
@@ -268,7 +270,7 @@ cvae = CVAE(encoder=cvae_encoder, decoder=cvae_decoder, beta=beta_coeff)
 cvae.compile(optimizer='Adam')
 
 
-# In[218]:
+# In[ ]:
 
 
 train_x = np.array(train_x)
@@ -281,7 +283,7 @@ train_y = np.array(train_y)
 
 
 model = cvae
-epochs = 1
+epochs = 50
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(True)
 early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)
@@ -370,7 +372,7 @@ print(train_y_label[0])
 train_y[:1000].shape
 
 
-# In[159]:
+# In[ ]:
 
 
 #reconstruct train 
@@ -381,7 +383,7 @@ print(train_x_latent.shape)
 p = cvae_decoder.predict(train_x_latent)
 
 
-# In[342]:
+# In[ ]:
 
 
 #reconstruct test
@@ -392,13 +394,13 @@ print(train_x_latent.shape)
 q = cvae_decoder.predict(test_x_latent)
 
 
-# In[160]:
+# In[ ]:
 
 
 mean, log_var, z = cvae_encoder.predict(conditional_input)
 
 
-# In[358]:
+# In[ ]:
 
 
 var = np.exp(log_var)
@@ -407,13 +409,13 @@ print(z.mean(), z.std(), z.min(), z.max())
 print(var.mean(), var.std(), var.min(), var.max())
 
 
-# In[357]:
+# In[ ]:
 
 
 
 
 
-# In[175]:
+# In[ ]:
 
 
 np.sqrt(np.exp(-0.38956717)) # mean of sqrt(exp(log_var)) -> sd for noise
@@ -431,7 +433,7 @@ c[0].shape
 # In[ ]:
 
 
-
+cvae.encoder.get_layer('z_mean').weights[0]
 
 
 # In[ ]:
@@ -442,21 +444,21 @@ cvae.built = True
 cvae.load_weights('weights/cvae.h5')
 
 
-# In[80]:
+# In[ ]:
 
 
 plt.imshow(p[0])
 plt.show()
 
 
-# In[82]:
+# In[ ]:
 
 
 plt.imshow(train_x[0])
 plt.show()
 
 
-# In[157]:
+# In[ ]:
 
 
 def plot_predictions(y_true, y_pred):    
@@ -467,19 +469,19 @@ def plot_predictions(y_true, y_pred):
     plt.tight_layout()
 
 
-# In[158]:
+# In[ ]:
 
 
 plot_predictions(train_x[:100], p)
 
 
-# In[343]:
+# In[ ]:
 
 
 plot_predictions(test_x[:100], q)
 
 
-# In[85]:
+# In[ ]:
 
 
 # Scatter with images instead of points
@@ -502,7 +504,7 @@ def imscatter(x, y, ax, imageData, zoom):
     ax.autoscale()
 
 
-# In[86]:
+# In[ ]:
 
 
 #https://github.com/despoisj/LatentSpaceVisualization/blob/master/visuals.py
@@ -531,7 +533,7 @@ def computeTSNEProjectionOfLatentSpace(X, X_encoded, display=True, save=True):
         return X_tsne
 
 
-# In[151]:
+# In[ ]:
 
 
 inputs = [train_x[:1000], train_y[:1000] ]
@@ -544,20 +546,20 @@ X_encoded_flatten = X_encoded.reshape(-1,25*25*5)
 X_encoded_flatten.shape
 
 
-# In[89]:
+# In[ ]:
 
 
 tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
 X_tsne = tsne.fit_transform(X_encoded_flatten)
 
 
-# In[152]:
+# In[ ]:
 
 
 computeTSNEProjectionOfLatentSpace(train_x[:1000,], X_encoded_flatten, display=True, save=True)
 
 
-# In[154]:
+# In[ ]:
 
 
 import pandas as pd
@@ -567,7 +569,7 @@ df['comp-1'] = X_tsne[:,0]
 df['comp-2'] = X_tsne[:,1]
 
 
-# In[153]:
+# In[ ]:
 
 
 fig, ax = plt.subplots(figsize=(15, 15))
@@ -578,7 +580,7 @@ ax.legend()
 plt.show()
 
 
-# In[155]:
+# In[ ]:
 
 
 def computeTSNEProjectionOfPixelSpace(X, display=True):
@@ -605,7 +607,7 @@ def computeTSNEProjectionOfPixelSpace(X, display=True):
 #computeTSNEProjectionOfPixelSpace(train_x[:1000], display=True)
 
 
-# In[101]:
+# In[ ]:
 
 
 def getReconstructedImages(X, y, encoder, decoder):
@@ -630,7 +632,7 @@ def getReconstructedImages(X, y, encoder, decoder):
     return resultImage
 
 
-# In[102]:
+# In[ ]:
 
 
 # Reconstructions for samples in dataset
@@ -656,13 +658,13 @@ def visualizeReconstructedImages(X_train, X_test, y_train, y_test, encoder, deco
         plt.show()
 
 
-# In[103]:
+# In[ ]:
 
 
 visualizeReconstructedImages(train_x[:100], test_x[:100], train_y[:100], test_y[:100], cvae_encoder, cvae_decoder, save = True)
 
 
-# In[399]:
+# In[ ]:
 
 
 labels = (0, 1)
@@ -678,7 +680,7 @@ decoded_x = (decoded_x*255.).astype(np.uint8)
 plt.imshow((decoded_x[0]))
 
 
-# In[407]:
+# In[ ]:
 
 
 def generate_images(decoder, labels):    
@@ -698,13 +700,13 @@ def generate_images(decoder, labels):
     plt.tight_layout()
 
 
-# In[408]:
+# In[ ]:
 
 
 generate_images(cvae_decoder, [(0, 1), (1, 0)])
 
 
-# In[409]:
+# In[ ]:
 
 
 def generate_random_img(decoder, labels, samples=100):
@@ -716,13 +718,13 @@ def generate_random_img(decoder, labels, samples=100):
     return decoded
 
 
-# In[195]:
+# In[ ]:
 
 
 
 
 
-# In[411]:
+# In[ ]:
 
 
 def getGeneratedImages(X, y, encoder, decoder):
@@ -747,7 +749,7 @@ def getGeneratedImages(X, y, encoder, decoder):
     return resultImage
 
 
-# In[412]:
+# In[ ]:
 
 
 # Reconstructions for samples in dataset
@@ -774,13 +776,13 @@ def visualizeGeneratedImages(encoder, decoder, save=False):
         plt.show()
 
 
-# In[413]:
+# In[ ]:
 
 
 visualizeGeneratedImages(cvae_encoder, cvae_decoder, save=True)
 
 
-# In[288]:
+# In[ ]:
 
 
 #Shows linear inteprolation in image space vs latent space
@@ -857,7 +859,7 @@ def visualizeInterpolation( encoder, decoder, save=False, nbSteps=5):
     
 
 
-# In[289]:
+# In[ ]:
 
 
 visualizeInterpolation(encoder=cvae_encoder, decoder=cvae_decoder, save=True, nbSteps=10)
