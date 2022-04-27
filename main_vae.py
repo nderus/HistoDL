@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[ ]:
 
 
 # TO DO:
@@ -10,7 +10,7 @@
 # try with flattened inputs ?
 
 
-# In[3]:
+# In[ ]:
 
 
 # import libraries
@@ -27,9 +27,10 @@ import cv2
 from sklearn.model_selection import train_test_split
 from glob import glob
 import math
+#%matplotlib inline
 
 
-# In[4]:
+# In[ ]:
 
 
 import keras
@@ -40,7 +41,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras import backend as K
 
 
-# In[5]:
+# In[4]:
 
 
 # import data
@@ -49,7 +50,7 @@ for filename in imagePatches[0:10]:
     print(filename)
 
 
-# In[6]:
+# In[5]:
 
 
 class0 = [] # 0 = no cancer
@@ -62,17 +63,19 @@ for filename in imagePatches:
         class1.append(filename)
 
 
-# In[7]:
+# In[24]:
 
 
-#sampled_class0 = random.sample(class0, 78786)
-#sampled_class1 = random.sample(class1, 78786)
-sampled_class0 = random.sample(class0, 50000)
-sampled_class1 = random.sample(class1, 50000)
+sampled_class0 = random.sample(class0, 78786)
+sampled_class1 = random.sample(class1, 78786)
+#sampled_class0 = random.sample(class0, 50000)
+#sampled_class1 = random.sample(class1, 50000)
+#sampled_class0 = random.sample(class0, 1000)
+#sampled_class1 = random.sample(class1, 1000)
 len(sampled_class0)
 
 
-# In[8]:
+# In[7]:
 
 
 from matplotlib.image import imread
@@ -89,14 +92,14 @@ def get_image_arrays(data, label):
     return img_arrays
 
 
-# In[9]:
+# In[8]:
 
 
 class0_array = get_image_arrays(sampled_class0, 0)
 class1_array = get_image_arrays(sampled_class1, 1)
 
 
-# In[10]:
+# In[26]:
 
 
 combined_data = np.concatenate((class0_array, class1_array))
@@ -104,7 +107,7 @@ combined_data = np.concatenate((class0_array, class1_array))
 #random.shuffle(combined_data)
 
 
-# In[11]:
+# In[27]:
 
 
 X = []
@@ -115,7 +118,7 @@ for features, label in combined_data:
     y.append(label)
 
 
-# In[12]:
+# In[28]:
 
 
 X = np.array(X).reshape(-1, 50, 50, 3)
@@ -125,7 +128,13 @@ print(X.shape)
 print(y.shape)
 
 
-# In[13]:
+# In[ ]:
+
+
+
+
+
+# In[29]:
 
 
 train_x, test_x, train_y, test_y = train_test_split(X, y, test_size = 0.2,
@@ -141,26 +150,27 @@ train_y_label = np.argmax(train_y, axis=1) # from one-hot encoding to integer
 test_y_label = np.argmax(test_y, axis=1)
 val_y_label = np.argmax(val_y, axis=1)
 class_names = ('non-cancer','cancer')
-print(train_x.shape, test_x.shape, train_y.shape, test_y.shape)
+print(train_x.shape, test_x.shape, val_x.shape, train_y.shape, test_y.shape, val_y.shape)
 
 
-# In[14]:
+# In[30]:
 
 
 print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[15]:
+# In[31]:
 
 
 train_x = train_x / 255
 test_x = test_x / 255
+val_x = val_x / 255
 print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[16]:
+# In[32]:
 
 
 # visualize random images from data
@@ -180,7 +190,7 @@ for i in range(image_count):
 
 
 
-# In[17]:
+# In[16]:
 
 
 #vae = keras.models.load_model('models/vae.h5')
@@ -188,7 +198,7 @@ for i in range(image_count):
 #decoder = keras.models.load_model('models/decoder.h5')
 
 
-# In[18]:
+# In[17]:
 
 
 # load encoder and decoder models
@@ -196,17 +206,17 @@ vae_encoder = keras.models.load_model('models/vae_encoder.h5')
 vae_decoder = keras.models.load_model('models/vae_decoder.h5')
 
 
-# In[19]:
+# In[18]:
 
 
-batch_size = 250
+
 input_shape = (50, 50, 3)
 
 num_features = 7500#50*50*3
-latent_dim = vae_decoder.input_shape
+latent_dim = vae_decoder.input_shape[1]
 
 
-# In[20]:
+# In[40]:
 
 
 class VAE(keras.Model):
@@ -220,7 +230,7 @@ class VAE(keras.Model):
             name="reconstruction_loss"
         )
         self.kl_loss_tracker = keras.metrics.Mean(name="kl_loss")
-        #self.beta_coefficient = beta_coefficient
+        
     
     def call(self, inputs):
         x = self.encoder(inputs)[2]
@@ -256,23 +266,47 @@ class VAE(keras.Model):
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
             "kl_loss": self.kl_loss_tracker.result(),
         }
+    def test_step(self, data):
+        if isinstance(data, tuple):
+            data = data[0]
+        z_mean, z_log_var, z = self.encoder(data)
+        reconstruction = self.decoder(z)
+        #reconstruction_loss = tf.reduce_sum(keras.losses.MSE(data, reconstruction), axis=(1)) # mod 
+        reconstruction_loss = np.prod((50, 50, 3)) * tf.keras.losses.MSE(tf.keras.backend.flatten(data), tf.keras.backend.flatten(reconstruction)) # over weighted MSE    
+        
+        kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
+        kl_loss = tf.reduce_sum(kl_loss, axis=1) #removed reduce_mean()
+        
+        total_loss = reconstruction_loss + (self.beta * kl_loss)
+        total_loss = tf.reduce_mean(total_loss) 
+        return{
+            'val_loss': total_loss,
+            'val_reconstruction_loss': reconstruction_loss,
+            'kl_loss': kl_loss
+        }
 
 
-# In[21]:
+# In[ ]:
+
+
+
+
+
+# In[20]:
 
 
 data = np.random.normal(size=(50, 50, 3))
 reconstruction = np.random.normal(size=(50, 50, 3))
 
 
-# In[22]:
+# In[ ]:
 
 
 mse = np.prod((50, 50, 3))*tf.keras.losses.mse(tf.keras.backend.flatten(data), tf.keras.backend.flatten(reconstruction))
 mse
 
 
-# In[23]:
+# In[41]:
 
 
 beta_coeff = 1
@@ -282,64 +316,76 @@ vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001, clipnorm=1))
 #plot_model(vae, show_shapes=True, show_layer_names=True,expand_nested=True)
 
 
+# In[42]:
+
+
+val_x = np.array(val_x)
+
+
 # 
 
-# In[26]:
+# In[43]:
 
 
-
-epochs = 500
+batch_size = 500
+epochs = 1
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(False)
 early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=10, restore_best_weights=True)
-history = vae.fit(train_x, validation_data=[val_x], epochs=epochs, batch_size=32, callbacks=early_stop) 
+history = vae.fit(train_x, validation_data=(val_x, val_x), epochs=epochs, batch_size=batch_size, callbacks=early_stop) 
 
 
-# In[ ]:
+# In[50]:
 
 
+history.history.keys()
 
 
+# In[45]:
 
-# In[30]:
 
-
-def Train_Val_Plot(loss, reconstruction_loss, kl_loss):
+def Train_Val_Plot(loss, val_loss, reconstruction_loss, val_reconstruction_loss, kl_loss, val_kl_loss):
     
     fig, (ax1, ax2, ax3) = plt.subplots(1,3, figsize= (16,4))
     fig.suptitle(" MODEL'S METRICS VISUALIZATION ")
 
     ax1.plot(range(1, len(loss) + 1), loss)
+    ax1.plot(range(1, len(val_loss) + 1), val_loss)
     ax1.set_title('History of Loss')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Loss')
+    ax1.legend(['training', 'validation'])
 
     ax2.plot(range(1, len(reconstruction_loss) + 1), reconstruction_loss)
+    ax2.plot(range(1, len(val_reconstruction_loss) + 1), val_reconstruction_loss)
     ax2.set_title('History of reconstruction_loss')
     ax2.set_xlabel('Epochs')
     ax2.set_ylabel('reconstruction_loss')
-    #ax1.legend(['training', 'validation'])
-
-    #ax2.legend(['training', 'validation'])
+    ax2.legend(['training', 'validation'])
     
     ax3.plot(range(1, len(kl_loss) + 1), kl_loss)
-
+    ax3.plot(range(1, len(val_kl_loss) + 1), val_kl_loss)
     ax3.set_title(' History of kl_loss')
     ax3.set_xlabel(' Epochs ')
     ax3.set_ylabel('kl_loss')
-    #ax3.legend(['training', 'validation'])
+    ax3.legend(['training', 'validation'])
      
-
+    
     plt.show()
+    fig.savefig('img/vae_loss_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff))
+
     
 
 
-# In[31]:
+# In[52]:
 
 
 Train_Val_Plot(history.history['loss'],
                history.history['reconstruction_loss'],
-               history.history['kl_loss']
+               history.history['kl_loss'],
+               history.history['val_val_loss'],
+               history.history['val_val_reconstruction_loss'],
+               history.history['val_kl_loss']
                )
 
 
@@ -360,7 +406,7 @@ with open('trainHistoryDict.txt', 'wb') as file_pi:
     pickle.dump(history.history, file_pi)
 
 
-# In[27]:
+# In[ ]:
 
 
 import pandas as pd
@@ -368,7 +414,7 @@ import pandas as pd
 object = pd.read_pickle(r'trainHistoryDict.txt')
 
 
-# In[32]:
+# In[ ]:
 
 
 Train_Val_Plot(object['loss'],
@@ -377,7 +423,7 @@ Train_Val_Plot(object['loss'],
                )
 
 
-# In[36]:
+# In[ ]:
 
 
 #vae(np.zeros((1,50,50,3)))
@@ -385,17 +431,17 @@ Train_Val_Plot(object['loss'],
 #vae.load_weights('weights/vae.h5')
 
 
-# In[37]:
+# In[ ]:
 
 
-p = vae.predict(train_x[:1000])
-#p = vae.predict(train_x)
+#p = vae.predict(train_x[:1000])
+p = vae.predict(train_x)
 
 
 # In[ ]:
 
 
-plt.imshow(train_x[15])
+plt.imshow(train_x[0])
 plt.show()
 
 
@@ -406,7 +452,7 @@ plt.imshow(p[0])
 plt.show()
 
 
-# In[38]:
+# In[ ]:
 
 
 def plot_predictions(y_true, y_pred):    
@@ -417,13 +463,13 @@ def plot_predictions(y_true, y_pred):
     plt.tight_layout()
 
 
-# In[39]:
+# In[ ]:
 
 
 plot_predictions(train_x[:100], p)
 
 
-# In[50]:
+# In[ ]:
 
 
 # Scatter with images instead of points
@@ -446,7 +492,7 @@ def imscatter(x, y, ax, imageData, zoom):
     ax.autoscale()
 
 
-# In[45]:
+# In[ ]:
 
 
 #https://github.com/despoisj/LatentSpaceVisualization/blob/master/visuals.py
@@ -469,13 +515,13 @@ def computeTSNEProjectionOfLatentSpace(X, X_encoded, display=True, save=True):
         ax = fig.add_subplot(111, facecolor='black')
         imscatter(X_tsne[:, 0], X_tsne[:, 1], imageData=X, ax=ax, zoom=0.5)
         if save:
-            fig.savefig('img/t-SNE-embedding_vae_epochs:{}_beta:{}.png'.format(epochs, beta_coeff))
+            fig.savefig('img/t-SNE-embedding_vae_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff))
         plt.show()
     else:
         return X_tsne
 
 
-# In[43]:
+# In[ ]:
 
 
 X_encoded = vae_encoder.predict(train_x[:1000])[0]
@@ -493,20 +539,20 @@ X_encoded_flatten.shape
 
 
 
-# In[46]:
+# In[ ]:
 
 
 tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
 X_tsne = tsne.fit_transform(X_encoded_flatten)
 
 
-# In[51]:
+# In[ ]:
 
 
 computeTSNEProjectionOfLatentSpace(train_x[:1000,], X_encoded_flatten, display=True, save=True)
 
 
-# In[48]:
+# In[ ]:
 
 
 import pandas as pd
@@ -516,7 +562,7 @@ df['comp-1'] = X_tsne[:,0]
 df['comp-2'] = X_tsne[:,1]
 
 
-# In[49]:
+# In[ ]:
 
 
 fig, ax = plt.subplots(figsize=(15, 15))
@@ -527,7 +573,7 @@ ax.legend()
 plt.show()
 
 
-# In[52]:
+# In[ ]:
 
 
 def computeTSNEProjectionOfPixelSpace(X, display=True):
@@ -554,7 +600,7 @@ def computeTSNEProjectionOfPixelSpace(X, display=True):
 #computeTSNEProjectionOfPixelSpace(train_x[:1000], display=True)
 
 
-# In[53]:
+# In[ ]:
 
 
 def getReconstructedImages(X, encoder, decoder):
@@ -577,7 +623,7 @@ def getReconstructedImages(X, encoder, decoder):
     return resultImage
 
 
-# In[54]:
+# In[ ]:
 
 
 # Reconstructions for samples in dataset
@@ -597,12 +643,12 @@ def visualizeReconstructedImages(X_train, X_test, encoder, decoder, save=False):
     if save:
         fig, _ = plt.subplots(figsize=(15, 15))
         plt.imshow(result)
-        fig.savefig('img/vae_reconstructions_epochs:{}_beta:{}.png'.format(epochs, beta_coeff))
+        fig.savefig('img/vae_reconstructions_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff))
     else:
         plt.show()
 
 
-# In[55]:
+# In[ ]:
 
 
 visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decoder, save = True)
@@ -617,7 +663,7 @@ visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decode
 #plt.imshow((decoded[0]*255.).astype(np.uint8))
 
 
-# In[63]:
+# In[ ]:
 
 
 def generate_images(decoder):    
@@ -637,7 +683,7 @@ def generate_images(decoder):
     plt.tight_layout()
 
 
-# In[61]:
+# In[ ]:
 
 
 def generate_images(decoder):    
@@ -655,7 +701,7 @@ def generate_images(decoder):
     plt.tight_layout()
 
 
-# In[65]:
+# In[ ]:
 
 
 def generate_images(decoder):    
@@ -669,11 +715,11 @@ def generate_images(decoder):
 
             decoded = vae_decoder.predict(noise).squeeze()
             ax[i][j].imshow( (decoded*255.).astype(np.uint8) )
-    fig.savefig('img/vae_generations_epochs:{}_beta:{}.png'.format(epochs, beta_coeff))   
+    fig.savefig('img/vae_generations_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff))   
     plt.tight_layout()
 
 
-# In[66]:
+# In[ ]:
 
 
 generate_images(vae_decoder)
@@ -743,11 +789,72 @@ def visualizeInterpolation(start, end, encoder, decoder, save=False, nbSteps=5):
 
 
 visualizeInterpolation(train_x[random.randint(0,train_x.shape[0])], train_x[random.randint(0, train_x.shape[0])],
-                     vae_encoder, vae_decoder, save=True, nbSteps=10)
+                     vae_encoder, vae_decoder, save=False, nbSteps=10)
 
 
 # In[ ]:
 
 
+def send_email_pdf_figs(path_to_pdf, subject, message, destination, password_path=None):
+    ## credits: http://linuxcursor.com/python-programming/06-how-to-send-pdf-ppt-attachment-with-html-body-in-python-script
+    from socket import gethostname
+    #import email
+    from email.mime.application import MIMEApplication
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    import smtplib
+    import json
 
+    server = smtplib.SMTP('smtp-mail.outlook.com', 587)
+    server.starttls()
+
+    server.login('nicolas.derus2@unibo.it', 'Epiphone1111-')
+    # Craft message (obj)
+    msg = MIMEMultipart()
+
+    message = f'{message}\nSend from Hostname: {gethostname()}'
+    msg['Subject'] = subject
+    msg['From'] = 'nicolas.derus2@unibo.it'
+    msg['To'] = destination
+    # Insert the text to the msg going by e-mail
+    msg.attach(MIMEText(message, "plain"))
+    # Attach the pdf to the msg going by e-mail
+
+    for path in path_to_pdf:    
+        with open(path, "rb") as f:
+            #attach = email.mime.application.MIMEApplication(f.read(),_subtype="pdf")
+            attach = MIMEApplication(f.read(),_subtype="pdf")
+            attach.add_header('Content-Disposition','attachment',filename=str(path))
+            msg.attach(attach)
+    # send msg
+    server.send_message(msg)
+
+
+# In[ ]:
+
+
+path_to_pdf = ('/home/PERSONALE/nicolas.derus2/HistoDL/img/vae_loss_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff), #loss
+                '/home/PERSONALE/nicolas.derus2/HistoDL/img/t-SNE-embedding_vae_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff), #embedding
+                '/home/PERSONALE/nicolas.derus2/HistoDL/img/vae_reconstructions_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff), #reconstuctions
+                '/home/PERSONALE/nicolas.derus2/HistoDL/img/vae_generations_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff))
+
+
+# In[ ]:
+
+
+send_email_pdf_figs(path_to_pdf, 'Run completed!', 'HistoDL ', 'nrderus1@gmail.com', password_path=None)
+
+
+# In[ ]:
+
+
+#loss
+#send_email_pdf_figs('/home/PERSONALE/nicolas.derus2/HistoDL/img/vae_loss_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff), 'Run completed!', 'HistoDL - Embedding', 'nrderus1@gmail.com', password_path=None)
+
+
+# In[ ]:
+
+
+#embedding
+#send_email_pdf_figs('/home/PERSONALE/nicolas.derus2/HistoDL/img/t-SNE-embedding_vae_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff), 'Run completed!', 'HistoDL - Embedding', 'nrderus1@gmail.com', password_path=None)
 
