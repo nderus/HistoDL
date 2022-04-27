@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[22]:
+# In[2]:
 
 
 # TO DO:
@@ -10,7 +10,7 @@
 # try with flattened inputs ?
 
 
-# In[23]:
+# In[3]:
 
 
 # import libraries
@@ -28,7 +28,8 @@ from sklearn.model_selection import train_test_split
 from glob import glob
 import math
 
-# In[24]:
+
+# In[4]:
 
 
 import keras
@@ -39,7 +40,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras import backend as K
 
 
-# In[25]:
+# In[5]:
 
 
 # import data
@@ -48,7 +49,7 @@ for filename in imagePatches[0:10]:
     print(filename)
 
 
-# In[26]:
+# In[6]:
 
 
 class0 = [] # 0 = no cancer
@@ -61,17 +62,17 @@ for filename in imagePatches:
         class1.append(filename)
 
 
-# In[27]:
+# In[7]:
 
 
 #sampled_class0 = random.sample(class0, 78786)
 #sampled_class1 = random.sample(class1, 78786)
-sampled_class0 = random.sample(class0, 30000)
-sampled_class1 = random.sample(class1, 30000)
+sampled_class0 = random.sample(class0, 50000)
+sampled_class1 = random.sample(class1, 50000)
 len(sampled_class0)
 
 
-# In[28]:
+# In[8]:
 
 
 from matplotlib.image import imread
@@ -88,14 +89,14 @@ def get_image_arrays(data, label):
     return img_arrays
 
 
-# In[29]:
+# In[9]:
 
 
 class0_array = get_image_arrays(sampled_class0, 0)
 class1_array = get_image_arrays(sampled_class1, 1)
 
 
-# In[30]:
+# In[10]:
 
 
 combined_data = np.concatenate((class0_array, class1_array))
@@ -103,7 +104,7 @@ combined_data = np.concatenate((class0_array, class1_array))
 #random.shuffle(combined_data)
 
 
-# In[31]:
+# In[11]:
 
 
 X = []
@@ -114,7 +115,7 @@ for features, label in combined_data:
     y.append(label)
 
 
-# In[32]:
+# In[12]:
 
 
 X = np.array(X).reshape(-1, 50, 50, 3)
@@ -124,7 +125,7 @@ print(X.shape)
 print(y.shape)
 
 
-# In[33]:
+# In[13]:
 
 
 train_x, test_x, train_y, test_y = train_test_split(X, y, test_size = 0.2,
@@ -143,14 +144,14 @@ class_names = ('non-cancer','cancer')
 print(train_x.shape, test_x.shape, train_y.shape, test_y.shape)
 
 
-# In[34]:
+# In[14]:
 
 
 print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[35]:
+# In[15]:
 
 
 train_x = train_x / 255
@@ -159,7 +160,7 @@ print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[36]:
+# In[16]:
 
 
 # visualize random images from data
@@ -173,17 +174,13 @@ for i in range(image_count):
   axs[i].set_title(class_names[train_y_label[random_idx]])
 
 
-# In[37]:
+# In[ ]:
 
 
-batch_size = 250
-input_shape = (50, 50, 3)
-
-num_features = 7500#50*50*3
-latent_dim = 512
 
 
-# In[38]:
+
+# In[17]:
 
 
 #vae = keras.models.load_model('models/vae.h5')
@@ -191,7 +188,7 @@ latent_dim = 512
 #decoder = keras.models.load_model('models/decoder.h5')
 
 
-# In[39]:
+# In[18]:
 
 
 # load encoder and decoder models
@@ -199,7 +196,17 @@ vae_encoder = keras.models.load_model('models/vae_encoder.h5')
 vae_decoder = keras.models.load_model('models/vae_decoder.h5')
 
 
-# In[40]:
+# In[19]:
+
+
+batch_size = 250
+input_shape = (50, 50, 3)
+
+num_features = 7500#50*50*3
+latent_dim = vae_decoder.input_shape
+
+
+# In[20]:
 
 
 class VAE(keras.Model):
@@ -251,21 +258,21 @@ class VAE(keras.Model):
         }
 
 
-# In[41]:
+# In[21]:
 
 
 data = np.random.normal(size=(50, 50, 3))
 reconstruction = np.random.normal(size=(50, 50, 3))
 
 
-# In[42]:
+# In[22]:
 
 
 mse = np.prod((50, 50, 3))*tf.keras.losses.mse(tf.keras.backend.flatten(data), tf.keras.backend.flatten(reconstruction))
 mse
 
 
-# In[43]:
+# In[23]:
 
 
 beta_coeff = 1
@@ -277,18 +284,24 @@ vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001, clipnorm=1))
 
 # 
 
-# In[45]:
+# In[26]:
 
 
-model = vae
-epochs = 50
+
+epochs = 500
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(False)
-early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)
-history = model.fit(train_x, validation_data=(val_x,None), epochs=epochs, batch_size=32, callbacks=early_stop) 
+early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=10, restore_best_weights=True)
+history = vae.fit(train_x, validation_data=[val_x], epochs=epochs, batch_size=32, callbacks=early_stop) 
 
 
 # In[ ]:
+
+
+
+
+
+# In[30]:
 
 
 def Train_Val_Plot(loss, reconstruction_loss, kl_loss):
@@ -320,6 +333,10 @@ def Train_Val_Plot(loss, reconstruction_loss, kl_loss):
     plt.show()
     
 
+
+# In[31]:
+
+
 Train_Val_Plot(history.history['loss'],
                history.history['reconstruction_loss'],
                history.history['kl_loss']
@@ -331,7 +348,7 @@ Train_Val_Plot(history.history['loss'],
 # In[ ]:
 
 
-model.save_weights('weights/vae.h5')
+vae.save_weights('weights/vae.h5')
 
 
 # In[ ]:
@@ -343,7 +360,7 @@ with open('trainHistoryDict.txt', 'wb') as file_pi:
     pickle.dump(history.history, file_pi)
 
 
-# In[ ]:
+# In[27]:
 
 
 import pandas as pd
@@ -351,61 +368,28 @@ import pandas as pd
 object = pd.read_pickle(r'trainHistoryDict.txt')
 
 
-# In[ ]:
+# In[32]:
 
 
-print(object)
+Train_Val_Plot(object['loss'],
+              object['reconstruction_loss'],
+             object['kl_loss']
+               )
 
 
-# In[ ]:
-
-
-plt.imshow(train_x[0])
-plt.show()
-
-train_x[0].shape
-
-print(train_y[0])
-print(train_y_label[0])
-
-
-# In[47]:
-
-
-#p = vae.predict(train_x[:1000])
-p = model.predict(train_x)
-
-
-# In[ ]:
-
-
-p[0].shape
-
-
-# In[ ]:
-
-
-
-
-
-# In[50]:
+# In[36]:
 
 
 #vae(np.zeros((1,50,50,3)))
+#vae.built = True
 #vae.load_weights('weights/vae.h5')
 
 
-# In[ ]:
+# In[37]:
 
 
-
-
-
-# In[ ]:
-
-
-plt.imshow(p[0])
-plt.show()
+p = vae.predict(train_x[:1000])
+#p = vae.predict(train_x)
 
 
 # In[ ]:
@@ -415,7 +399,14 @@ plt.imshow(train_x[15])
 plt.show()
 
 
-# In[48]:
+# In[ ]:
+
+
+plt.imshow(p[0])
+plt.show()
+
+
+# In[38]:
 
 
 def plot_predictions(y_true, y_pred):    
@@ -426,13 +417,13 @@ def plot_predictions(y_true, y_pred):
     plt.tight_layout()
 
 
-# In[49]:
+# In[39]:
 
 
 plot_predictions(train_x[:100], p)
 
 
-# In[ ]:
+# In[50]:
 
 
 # Scatter with images instead of points
@@ -455,7 +446,7 @@ def imscatter(x, y, ax, imageData, zoom):
     ax.autoscale()
 
 
-# In[ ]:
+# In[45]:
 
 
 #https://github.com/despoisj/LatentSpaceVisualization/blob/master/visuals.py
@@ -484,10 +475,10 @@ def computeTSNEProjectionOfLatentSpace(X, X_encoded, display=True, save=True):
         return X_tsne
 
 
-# In[ ]:
+# In[43]:
 
 
-X_encoded = vae_encoder.predict(train_x[:1000])[2]
+X_encoded = vae_encoder.predict(train_x[:1000])[0]
 X_encoded.shape
 #need to reshape for TSNE
 #X_encoded_flatten = X_encoded.reshape(-1,25*25*3)
@@ -502,20 +493,20 @@ X_encoded_flatten.shape
 
 
 
-# In[ ]:
+# In[46]:
 
 
 tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
 X_tsne = tsne.fit_transform(X_encoded_flatten)
 
 
-# In[ ]:
+# In[51]:
 
 
 computeTSNEProjectionOfLatentSpace(train_x[:1000,], X_encoded_flatten, display=True, save=True)
 
 
-# In[ ]:
+# In[48]:
 
 
 import pandas as pd
@@ -525,7 +516,7 @@ df['comp-1'] = X_tsne[:,0]
 df['comp-2'] = X_tsne[:,1]
 
 
-# In[ ]:
+# In[49]:
 
 
 fig, ax = plt.subplots(figsize=(15, 15))
@@ -536,7 +527,7 @@ ax.legend()
 plt.show()
 
 
-# In[ ]:
+# In[52]:
 
 
 def computeTSNEProjectionOfPixelSpace(X, display=True):
@@ -560,10 +551,10 @@ def computeTSNEProjectionOfPixelSpace(X, display=True):
 # In[ ]:
 
 
-computeTSNEProjectionOfPixelSpace(train_x[:1000], display=True)
+#computeTSNEProjectionOfPixelSpace(train_x[:1000], display=True)
 
 
-# In[ ]:
+# In[53]:
 
 
 def getReconstructedImages(X, encoder, decoder):
@@ -586,7 +577,7 @@ def getReconstructedImages(X, encoder, decoder):
     return resultImage
 
 
-# In[ ]:
+# In[54]:
 
 
 # Reconstructions for samples in dataset
@@ -611,7 +602,7 @@ def visualizeReconstructedImages(X_train, X_test, encoder, decoder, save=False):
         plt.show()
 
 
-# In[ ]:
+# In[55]:
 
 
 visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decoder, save = True)
@@ -620,25 +611,13 @@ visualizeReconstructedImages(train_x[:100], test_x[:100],vae_encoder, vae_decode
 # In[ ]:
 
 
-noise = np.random.normal(size=(1, 25, 25, 3))
+#noise = np.random.normal(size=(1, 25, 25, 3))
 #noise = noise.reshape((1,25,25,3))
-decoded = vae_decoder.predict(noise)
-plt.imshow((decoded[0]*255.).astype(np.uint8))
+#decoded = vae_decoder.predict(noise)
+#plt.imshow((decoded[0]*255.).astype(np.uint8))
 
 
-# In[ ]:
-
-
-noise = []
-for i in range(0,1875):
-    noise.append( random.randint(-4, 4) )
-noise = np.array(noise)
-noise = noise.reshape(1, 25, 25, 3)
-decoded = vae_decoder.predict(noise)
-plt.imshow((decoded[0]))
-
-
-# In[ ]:
+# In[63]:
 
 
 def generate_images(decoder):    
@@ -650,7 +629,7 @@ def generate_images(decoder):
                 noise.append( random.randint(-1.5, 1.5) )
                 
             noise = np.array(noise)
-            noise = noise.reshape(1, 25, 25, 3)
+            noise = noise.reshape(1, 1000)
 
             decoded = vae_decoder.predict(noise)
             ax[i][j].imshow(decoded[0], aspect='auto')
@@ -658,17 +637,17 @@ def generate_images(decoder):
     plt.tight_layout()
 
 
-# In[ ]:
+# In[61]:
 
 
 def generate_images(decoder):    
     _, ax = plt.subplots(2, 10, figsize=(15, 4))
     for i in range(2):
         for j in range(10):
-            noise = np.random.normal(loc=0, scale = 1, size=1875)
+            noise = np.random.normal(loc=0, scale = 1, size=vae_decoder.input_shape[1])
                 
-            #noise = np.array(noise)
-            noise = noise.reshape(1, 25, 25, 3)
+            noise = np.array(noise)
+            noise = noise.reshape(1, 1000)
 
             decoded = vae_decoder.predict(noise).squeeze()
             ax[i][j].imshow( (decoded*255.).astype(np.uint8) )
@@ -676,7 +655,25 @@ def generate_images(decoder):
     plt.tight_layout()
 
 
-# In[ ]:
+# In[65]:
+
+
+def generate_images(decoder):    
+    fig, ax = plt.subplots(2, 10, figsize=(15, 4))
+    for i in range(2):
+        for j in range(10):
+            noise = np.random.normal(loc=0, scale = 1, size=vae_decoder.input_shape[1])
+                
+            noise = np.array(noise)
+            noise = noise.reshape(1, 1000)
+
+            decoded = vae_decoder.predict(noise).squeeze()
+            ax[i][j].imshow( (decoded*255.).astype(np.uint8) )
+    fig.savefig('img/vae_generations_epochs:{}_beta:{}.png'.format(epochs, beta_coeff))   
+    plt.tight_layout()
+
+
+# In[66]:
 
 
 generate_images(vae_decoder)
@@ -747,110 +744,6 @@ def visualizeInterpolation(start, end, encoder, decoder, save=False, nbSteps=5):
 
 visualizeInterpolation(train_x[random.randint(0,train_x.shape[0])], train_x[random.randint(0, train_x.shape[0])],
                      vae_encoder, vae_decoder, save=True, nbSteps=10)
-
-
-# In[ ]:
-
-
-# Computes A, B, C, A+B, A+B-C in latent space
-def visualizeArithmetics(a, b, c, encoder, decoder):
-    print("Computing arithmetics...")
-    # Create micro batch
-    X = np.array([a, b, c])
-
-    # Compute latent space projection
-    latentA, latentB, latentC = encoder.predict(X)[2]
-
-    add = latentA+latentB
-    addSub = latentA+latentB-latentC
-
-    # Create micro batch
-    X = np.array([latentA, latentB, latentC, add,addSub])
-
-    # Compute reconstruction
-    reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub = decoder.predict(X)
-    _, ax = plt.subplots(figsize=(10, 5))
-    ax.imshow(np.hstack([reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub]))
-    plt.tight_layout()
-    #plt.imshow(np.hstack([reconstructedA, reconstructedB, reconstructedC, reconstructedAdd, reconstructedAddSub]))
-    #cv2.waitKey()
-
-
-# In[ ]:
-
-
-#visualizeArithmetics(test_x[random.randint(0,test_x.shape[0])],test_x[random.randint(0,test_x.shape[0])], test_x[random.randint(0, test_x.shape[0])], vae_encoder, vae_decoder)
-visualizeArithmetics(train_x[random.randint(0,train_x.shape[0])],train_x[random.randint(0,train_x.shape[0])], train_x[random.randint(0, train_x.shape[0])], vae_encoder, vae_decoder)
-
-
-# In[ ]:
-
-
-def bilinear_interpolation(x, y, points):
-    '''Interpolate (x,y) from values associated with four points.
-
-    The four points are a list of four triplets:  (x, y, value).
-    The four points can be in any order.  They should form a rectangle.
-
-        >>> bilinear_interpolation(12, 5.5,
-        ...                        [(10, 4, 100),
-        ...                         (20, 4, 200),
-        ...                         (10, 6, 150),
-        ...                         (20, 6, 300)])
-        165.0
-
-    '''
-    # See formula at:  http://en.wikipedia.org/wiki/Bilinear_interpolation
-
-    points = sorted(points)               # order points by x, then by y
-    (x1, y1, q11), (_x1, y2, q12), (x2, _y1, q21), (_x2, _y2, q22) = points
-
-    if x1 != _x1 or x2 != _x2 or y1 != _y1 or y2 != _y2:
-        raise ValueError('points do not form a rectangle')
-    if not x1 <= x <= x2 or not y1 <= y <= y2:
-        raise ValueError('(x, y) not within the rectangle')
-
-    return (q11 * (x2 - x) * (y2 - y) +
-            q21 * (x - x1) * (y2 - y) +
-            q12 * (x2 - x) * (y - y1) +
-            q22 * (x - x1) * (y - y1)
-           ) / ((x2 - x1) * (y2 - y1) + 0.0)
-
-
-# In[ ]:
-
-
-#https://www.researchgate.net/publication/324057819_Comparing_Generative_Adversarial_Network_Techniques_for_Image_Creation_and_Modification/link/5abcd63caca27222c7543718/download
-#bilinear interpolation
-#1. sample 4 random real images (corners)
-#2. encode them 
-#2b t-sne?
-#3. use bilinear interpolation between these images
-#4. decode the interpolations
-input1 = train_x[random.randint(0,train_x.shape[0])]
-input2 = train_x[random.randint(0,train_x.shape[0])]
-input3 = train_x[random.randint(0,train_x.shape[0])]
-input4 = train_x[random.randint(0,train_x.shape[0])]
-
-X = np.array([input1, input2, input3, input4])
-
-# Compute latent space projection
-latentX = vae_encoder.predict(X)[2]
-latent1, latent2, latent3, latent4 = latentX
-
-
-# In[ ]:
-
-
-xx, yy = np.meshgrid(latent1, latent2)
-
-
-# In[ ]:
-
-
-import scipy
-z = (xx+yy) / 2
-f = scipy.interpolate.interp2d(latent1, latent2, z, kind='linear')
 
 
 # In[ ]:
