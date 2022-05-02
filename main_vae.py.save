@@ -7,10 +7,10 @@
 # TO DO:
 # add batch_normalization layer
 
-# changed binary crossentropy for mse
+# try with flattened inputs ?
 
 
-# In[2]:
+# In[ ]:
 
 
 # import libraries
@@ -30,7 +30,7 @@ import math
 #%matplotlib inline
 
 
-# In[3]:
+# In[ ]:
 
 
 import keras
@@ -41,7 +41,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras import backend as K
 
 
-# In[ ]:
+# In[4]:
 
 
 # import data
@@ -50,7 +50,7 @@ for filename in imagePatches[0:10]:
     print(filename)
 
 
-# In[ ]:
+# In[5]:
 
 
 class0 = [] # 0 = no cancer
@@ -63,23 +63,19 @@ for filename in imagePatches:
         class1.append(filename)
 
 
-# In[ ]:
+# In[24]:
 
 
-#sampled_class0 = random.sample(class0, 78786)
-#sampled_class1 = random.sample(class1, 78786)
+sampled_class0 = random.sample(class0, 78786)
+sampled_class1 = random.sample(class1, 78786)
 #sampled_class0 = random.sample(class0, 50000)
 #sampled_class1 = random.sample(class1, 50000)
-#sampled_class0 = random.sample(class0, 30000)
-#sampled_class1 = random.sample(class1, 30000)
-sampled_class0 = random.sample(class0, 5000)
-sampled_class1 = random.sample(class1, 5000)
 #sampled_class0 = random.sample(class0, 1000)
 #sampled_class1 = random.sample(class1, 1000)
 len(sampled_class0)
 
 
-# In[ ]:
+# In[7]:
 
 
 from matplotlib.image import imread
@@ -96,14 +92,14 @@ def get_image_arrays(data, label):
     return img_arrays
 
 
-# In[ ]:
+# In[8]:
 
 
 class0_array = get_image_arrays(sampled_class0, 0)
 class1_array = get_image_arrays(sampled_class1, 1)
 
 
-# In[ ]:
+# In[26]:
 
 
 combined_data = np.concatenate((class0_array, class1_array))
@@ -111,7 +107,7 @@ combined_data = np.concatenate((class0_array, class1_array))
 #random.shuffle(combined_data)
 
 
-# In[ ]:
+# In[27]:
 
 
 X = []
@@ -122,7 +118,7 @@ for features, label in combined_data:
     y.append(label)
 
 
-# In[ ]:
+# In[28]:
 
 
 X = np.array(X).reshape(-1, 50, 50, 3)
@@ -138,7 +134,7 @@ print(y.shape)
 
 
 
-# In[ ]:
+# In[29]:
 
 
 train_x, test_x, train_y, test_y = train_test_split(X, y, test_size = 0.2,
@@ -157,14 +153,14 @@ class_names = ('non-cancer','cancer')
 print(train_x.shape, test_x.shape, val_x.shape, train_y.shape, test_y.shape, val_y.shape)
 
 
-# In[ ]:
+# In[30]:
 
 
 print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[ ]:
+# In[31]:
 
 
 train_x = train_x / 255
@@ -174,7 +170,7 @@ print('Min value: ', train_x.min())
 print('Max value: ', train_x.max())
 
 
-# In[ ]:
+# In[32]:
 
 
 # visualize random images from data
@@ -194,7 +190,7 @@ for i in range(image_count):
 
 
 
-# In[ ]:
+# In[16]:
 
 
 #vae = keras.models.load_model('models/vae.h5')
@@ -202,7 +198,7 @@ for i in range(image_count):
 #decoder = keras.models.load_model('models/decoder.h5')
 
 
-# In[ ]:
+# In[17]:
 
 
 # load encoder and decoder models
@@ -210,7 +206,7 @@ vae_encoder = keras.models.load_model('models/vae_encoder.h5')
 vae_decoder = keras.models.load_model('models/vae_decoder.h5')
 
 
-# In[ ]:
+# In[18]:
 
 
 
@@ -220,7 +216,7 @@ num_features = 7500#50*50*3
 latent_dim = vae_decoder.input_shape[1]
 
 
-# In[1]:
+# In[40]:
 
 
 class VAE(keras.Model):
@@ -230,13 +226,10 @@ class VAE(keras.Model):
         self.decoder = decoder
         self.beta = beta
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
-        self.reconstruction_loss_tracker = keras.metrics.Mean(name="reconstruction_loss")
+        self.reconstruction_loss_tracker = keras.metrics.Mean(
+            name="reconstruction_loss"
+        )
         self.kl_loss_tracker = keras.metrics.Mean(name="kl_loss")
-        #
-        self.v_total_loss_tracker = keras.metrics.Mean(name="v_total_loss")
-        self.v_reconstruction_loss_tracker = keras.metrics.Mean(
-            name="v_reconstruction_loss")
-        self.v_kl_loss_tracker = keras.metrics.Mean(name="v_kl_loss")
         
     
     def call(self, inputs):
@@ -249,16 +242,14 @@ class VAE(keras.Model):
             self.total_loss_tracker,
             self.reconstruction_loss_tracker,
             self.kl_loss_tracker,
-            
         ]
     #removed tf.reduce_sum(MSE)
     def train_step(self, data):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encoder(data)
             reconstruction = self.decoder(z)
-           
-            #reconstruction_loss = np.prod((50, 50, 3)) * tf.keras.losses.MSE(tf.keras.backend.flatten(data), tf.keras.backend.flatten(reconstruction)) # over weighted MSE  
-            reconstruction_loss = np.prod((50, 50, 3)) * tf.keras.losses.binary_crossentropy(tf.keras.backend.flatten(data), tf.keras.backend.flatten(reconstruction)) # over weighted MSE   
+            #reconstruction_loss = tf.reduce_sum(keras.losses.MSE(data, reconstruction), axis=(1)) # mod 
+            reconstruction_loss = np.prod((50, 50, 3)) * tf.keras.losses.MSE(tf.keras.backend.flatten(data), tf.keras.backend.flatten(reconstruction)) # over weighted MSE    
             
             kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
             kl_loss = tf.reduce_sum(kl_loss, axis=1) #removed reduce_mean()
@@ -275,26 +266,22 @@ class VAE(keras.Model):
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
             "kl_loss": self.kl_loss_tracker.result(),
         }
-
     def test_step(self, data):
         if isinstance(data, tuple):
             data = data[0]
         z_mean, z_log_var, z = self.encoder(data)
         reconstruction = self.decoder(z)
+        #reconstruction_loss = tf.reduce_sum(keras.losses.MSE(data, reconstruction), axis=(1)) # mod 
         reconstruction_loss = np.prod((50, 50, 3)) * tf.keras.losses.MSE(tf.keras.backend.flatten(data), tf.keras.backend.flatten(reconstruction)) # over weighted MSE    
         
         kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
-        kl_loss = tf.reduce_sum(kl_loss, axis=1) 
-        kl_loss = tf.reduce_mean(kl_loss) #added
+        kl_loss = tf.reduce_sum(kl_loss, axis=1) #removed reduce_mean()
+        
         total_loss = reconstruction_loss + (self.beta * kl_loss)
-        total_loss = tf.reduce_mean(total_loss)
-
-        self.total_loss_tracker.update_state(total_loss)
-        self.reconstruction_loss_tracker.update_state(reconstruction_loss)
-        self.kl_loss_tracker.update_state(kl_loss)
+        total_loss = tf.reduce_mean(total_loss) 
         return{
-            'loss': total_loss,
-            'reconstruction_loss': reconstruction_loss,
+            'val_loss': total_loss,
+            'val_reconstruction_loss': reconstruction_loss,
             'kl_loss': kl_loss
         }
 
@@ -305,7 +292,21 @@ class VAE(keras.Model):
 
 
 
+# In[20]:
+
+
+data = np.random.normal(size=(50, 50, 3))
+reconstruction = np.random.normal(size=(50, 50, 3))
+
+
 # In[ ]:
+
+
+mse = np.prod((50, 50, 3))*tf.keras.losses.mse(tf.keras.backend.flatten(data), tf.keras.backend.flatten(reconstruction))
+mse
+
+
+# In[41]:
 
 
 beta_coeff = 1
@@ -315,7 +316,7 @@ vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001, clipnorm=1))
 #plot_model(vae, show_shapes=True, show_layer_names=True,expand_nested=True)
 
 
-# In[ ]:
+# In[42]:
 
 
 val_x = np.array(val_x)
@@ -323,24 +324,24 @@ val_x = np.array(val_x)
 
 # 
 
-# In[ ]:
+# In[43]:
 
 
-batch_size = 32
-epochs = 500
+batch_size = 500
+epochs = 1
 #model.compile( optimizer='adam')
 tf.config.run_functions_eagerly(False)
 early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=10, restore_best_weights=True)
 history = vae.fit(train_x, validation_data=(val_x, val_x), epochs=epochs, batch_size=batch_size, callbacks=early_stop) 
 
 
-# In[ ]:
+# In[50]:
 
 
+history.history.keys()
 
 
-
-# In[ ]:
+# In[45]:
 
 
 def Train_Val_Plot(loss, val_loss, reconstruction_loss, val_reconstruction_loss, kl_loss, val_kl_loss):
@@ -373,17 +374,18 @@ def Train_Val_Plot(loss, val_loss, reconstruction_loss, val_reconstruction_loss,
     plt.show()
     fig.savefig('img/vae_loss_latent:{}_epochs:{}_beta:{}.png'.format(latent_dim, epochs, beta_coeff))
 
+    
 
 
-# In[ ]:
+# In[52]:
 
 
-Train_Val_Plot(history.history['loss'][1:],
-               history.history['val_loss'][1:],
-               history.history['reconstruction_loss'][1:],
-               history.history['val_reconstruction_loss'][1:],
-               history.history['kl_loss'][1:],
-               history.history['val_kl_loss'][1:]
+Train_Val_Plot(history.history['loss'],
+               history.history['reconstruction_loss'],
+               history.history['kl_loss'],
+               history.history['val_val_loss'],
+               history.history['val_val_reconstruction_loss'],
+               history.history['val_kl_loss']
                )
 
 
@@ -413,15 +415,6 @@ object = pd.read_pickle(r'trainHistoryDict.txt')
 
 
 # In[ ]:
-
-
-Train_Val_Plot(history.history['loss'][1:],
-               history.history['val_loss'][1:],
-               history.history['reconstruction_loss'][1:],
-               history.history['val_reconstruction_loss'][1:],
-               history.history['kl_loss'][1:],
-               history.history['val_kl_loss'][1:]
-               )
 
 
 # In[ ]:
@@ -709,10 +702,10 @@ def generate_images(decoder):
     fig, ax = plt.subplots(2, 10, figsize=(15, 4))
     for i in range(2):
         for j in range(10):
-            noise = np.random.normal(loc=0, scale = 1, size=latent_dim)
+            noise = np.random.normal(loc=0, scale = 1, size=vae_decoder.input_shape[1])
                 
             noise = np.array(noise)
-            noise = noise.reshape(1, latent_dim)
+            noise = noise.reshape(1, 1000)
 
             decoded = vae_decoder.predict(noise).squeeze()
             ax[i][j].imshow( (decoded*255.).astype(np.uint8) )
