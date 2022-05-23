@@ -1,5 +1,6 @@
 import tensorflow as tf
 import keras
+import numpy as np
 
 class CVAE(keras.Model):
     def __init__(self, encoder, decoder, beta, shape, **kwargs):
