@@ -132,6 +132,7 @@ datasets/
 models/
 weights/
 img/
+reports/
 
 #wandb files and train logs
 wandb/
