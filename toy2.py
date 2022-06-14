@@ -1656,20 +1656,23 @@ for counter, (activation, name) in enumerate(zip(activations[0:], layer_names[0:
 
 
 # util function to convert a tensor into a valid image
-def deprocess_image(x):
-    # normalize tensor: center on 0., ensure std is 0.1
-    x -= x.mean()
-    x /= (x.std() + K.epsilon())
-    x *= 0.1
+def deprocess_image(img):
+    # Normalize array: center on 0., ensure variance is 0.15
+    img -= img.mean()
+    img /= img.std() + 1e-5
+    img *= 0.15
 
-    # clip to [0, 1]
-    x += 0.5
-    x = np.clip(x, 0, 1)
+    # Center crop
+    img = img[25:-25, 25:-25, :]
 
-    # convert to RGB array
-    x *= 255
-    x = np.clip(x, 0, 255).astype('uint8')
-    return x
+    # Clip to [0, 1]
+    img += 0.5
+    img = np.clip(img, 0, 1)
+
+    # Convert to RGB array
+    img *= 255
+    img = np.clip(img, 0, 255).astype("uint8")
+    return img
 
 def normalize(x):
     # utility function to normalize a tensor by its L2 norm
@@ -1733,7 +1736,7 @@ def build_nth_filter_loss(filter_index, layer_name):
     for _ in range(epochs):
         with tf.GradientTape() as tape:
             outputs = submodel(conditional_input_img)
-            loss_value = tf.reduce_mean(outputs[:, :, :, filter_index])
+            loss_value = tf.reduce_mean(outputs[:, 2:-2, 2:-2, filter_index]) #removed borders
         grads = tape.gradient(loss_value, conditional_input_img)
         normalized_grads = grads / (tf.sqrt(tf.reduce_mean(tf.square(grads)))
                                    + 1e-5)
@@ -1856,8 +1859,6 @@ for layer_name, kept_filters in filters_dict.items():
     print('number of filters kept:', len(kept_filters))
     print('Completed.')
 
-
-# 
 
 # In[ ]:
 
