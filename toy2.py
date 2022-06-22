@@ -5,7 +5,7 @@
 
 # # **Utility functions**
 
-# In[ ]:
+# In[1]:
 
 
 import numpy as np
@@ -20,19 +20,19 @@ import tensorflow as tf
 print(tf. __version__)
 
 
-# In[ ]:
+# In[2]:
 
 
 import datetime, os
 
 
-# In[ ]:
+# In[3]:
 
 
 K.clear_session()
 
 
-# In[ ]:
+# In[4]:
 
 
 def find_indices(lst, condition):
@@ -58,7 +58,7 @@ def plot_2d_data_categorical(data_2d, y, titles=None, figsize = (7, 7), category
         axs[k, i].legend(*scatter.legend_elements())
         axs[k, i].set_xlim([-3, 3])
         axs[k, i].set_ylim([-3, 3])
-        wandb.log({"Embdedding": wandb.Image(plt)})
+        wandb.log({"Embdedding_classes": wandb.Image(plt)})
         fig.savefig('reports/' + directory + '/encoding_categorical')
         
 def plot_2d_data(data_2d, y, titles=None, figsize = (7, 7)):
@@ -71,7 +71,7 @@ def plot_2d_data(data_2d, y, titles=None, figsize = (7, 7)):
     scatter=axs[i].scatter(data_2d[i][:, 0], data_2d[i][:, 1],
                             s=1, c=y[i], cmap=plt.cm.Paired)
     axs[i].legend(*scatter.legend_elements())
-
+    wandb.log({"Embdedding": wandb.Image(plt)})
 
 def plot_history(history,metric=None):
   fig, ax1 = plt.subplots(figsize=(10, 8))
@@ -118,7 +118,7 @@ def plot_generated_images(generated_images, nrows, ncols,
   plt.show()
 
 
-# In[ ]:
+# In[5]:
 
 
 def conditional_input(self, inputs, label_size=10):
@@ -135,7 +135,7 @@ def conditional_input(self, inputs, label_size=10):
     return  input_img, input_label, conditional_input
 
 
-# In[ ]:
+# In[6]:
 
 
 def sampling(z_mean, z_log_var, input_label):
@@ -147,7 +147,7 @@ def sampling(z_mean, z_log_var, input_label):
     return z_cond
 
 
-# In[ ]:
+# In[7]:
 
 
 def Train_Val_Plot(loss, val_loss, reconstruction_loss, val_reconstruction_loss, kl_loss, val_kl_loss):
@@ -184,13 +184,13 @@ def Train_Val_Plot(loss, val_loss, reconstruction_loss, val_reconstruction_loss,
 
 # # **Data import and manipulation**
 
-# In[ ]:
+# In[8]:
 
 
-dataset_name = "cifar10"
+dataset_name = "fashion_mnist"
 category_count=10 
 
-(train_x, train_y), (test_x, test_y) = keras.datasets.cifar10.load_data()
+(train_x, train_y), (test_x, test_y) = keras.datasets.fashion_mnist.load_data()
 
 print('Train data flatten shape: ',train_x.shape)
 print('Train label shape: ',train_y.shape)
@@ -198,14 +198,16 @@ print('Test data flatten shape: ',test_x.shape)
 print('Test label shape: ',test_y.shape)
 
 
-# In[ ]:
+# In[9]:
 
 
 labels = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog",
          "horse", "ship", "truck"]
 
+labels = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
 
-# In[ ]:
+
+# In[10]:
 
 
 val_size=10000
@@ -219,7 +221,7 @@ print('Validation data flatten shape: ',val_x.shape)
 print('Validation label shape: ',val_y.shape)
 
 
-# In[ ]:
+# In[11]:
 
 
 if len(train_x.shape) == 3:
@@ -231,14 +233,14 @@ if len(train_x.shape) == 3:
     print('Test shape: ',test_x.shape)
 
 
-# In[ ]:
+# In[12]:
 
 
 input_shape = train_x.shape[1:]
 input_shape
 
 
-# In[ ]:
+# In[13]:
 
 
 train_x = train_x/255.0
@@ -249,7 +251,7 @@ print('Min value: ',train_x.min())
 print('Max value: ',train_x.max())
 
 
-# In[ ]:
+# In[14]:
 
 
 original_image_shape=(train_x.shape[1], train_x.shape[2])
@@ -263,7 +265,7 @@ print('Validation data flatten shape: ',val_x_flatten.shape)
 print('Test data flatten shape: ',test_x_flatten.shape)
 
 
-# In[ ]:
+# In[15]:
 
 
 train_y_one_hot = to_categorical(train_y,category_count)
@@ -278,13 +280,13 @@ print('Test label one hot encoding shape: ',test_y_one_hot.shape)
 # # **CVAE model**
 # Creating a CVAE class and plugging encoder and decoder
 
-# In[ ]:
+# In[16]:
 
 
-encoded_dim = 256
+encoded_dim = 2
 
 
-# In[ ]:
+# In[17]:
 
 
 #relu brings a lot of activation values = 0, leaky seems better
@@ -296,7 +298,7 @@ def bn_relu(inputs):
     return(relu)
 
 
-# In[ ]:
+# In[18]:
 
 
 def residual_block(x, filters: int, kernel_size: int = 3):
@@ -315,7 +317,7 @@ def residual_block(x, filters: int, kernel_size: int = 3):
     return out
 
 
-# In[ ]:
+# In[19]:
 
 
 def encoder3( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2): 
@@ -364,7 +366,7 @@ def encoder3( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2):
     return model
 
 
-# In[ ]:
+# In[20]:
 
 
 def encoder5( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2): 
@@ -401,7 +403,7 @@ def encoder5( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2):
     return model
 
 
-# In[ ]:
+# In[21]:
 
 
 def decoder5(input_shape, encoded_dim = 2,label_size=10): 
@@ -428,7 +430,7 @@ def decoder5(input_shape, encoded_dim = 2,label_size=10):
     return model
 
 
-# In[ ]:
+# In[22]:
 
 
 def encoder4( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2): 
@@ -488,7 +490,7 @@ def encoder4( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2):
     return model
 
 
-# In[ ]:
+# In[23]:
 
 
 def decoder4(input_shape, encoded_dim = 2,label_size=10): 
@@ -531,7 +533,7 @@ def decoder4(input_shape, encoded_dim = 2,label_size=10):
     return model
 
 
-# In[ ]:
+# In[24]:
 
 
 def decoder3(input_shape, encoded_dim = 2,label_size=10): 
@@ -580,7 +582,7 @@ def decoder3(input_shape, encoded_dim = 2,label_size=10):
     return model
 
 
-# In[ ]:
+# In[25]:
 
 
 def encoder2( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2): 
@@ -722,7 +724,7 @@ def encoder2( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2):
     return model
 
 
-# In[ ]:
+# In[26]:
 
 
 def decoder2(input_shape, encoded_dim = 2,label_size=10): 
@@ -829,7 +831,7 @@ def decoder2(input_shape, encoded_dim = 2,label_size=10):
     return model
 
 
-# In[ ]:
+# In[27]:
 
 
 def encoder( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2): 
@@ -887,7 +889,7 @@ def encoder( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2):
     return model
 
 
-# In[ ]:
+# In[28]:
 
 
 def decoder(input_shape, encoded_dim = 2,label_size=10): 
@@ -936,26 +938,26 @@ def decoder(input_shape, encoded_dim = 2,label_size=10):
     return model
 
 
-# In[ ]:
+# In[29]:
 
 
 cvae_encoder = encoder3(encoded_dim = encoded_dim, input_shape = input_shape)
 cvae_decoder = decoder3(encoded_dim = encoded_dim, input_shape = input_shape)
 
 
-# In[ ]:
+# In[30]:
 
 
 cvae_encoder.summary()
 
 
-# In[ ]:
+# In[31]:
 
 
 cvae_decoder.summary()
 
 
-# In[ ]:
+# In[32]:
 
 
 class CVAE(keras.Model):
@@ -1082,7 +1084,7 @@ class CVAE(keras.Model):
         }
 
 
-# In[ ]:
+# In[33]:
 
 
 kl_coefficient = encoded_dim / (input_shape[0] * input_shape[1] * input_shape[2])
@@ -1093,7 +1095,7 @@ cvae.built = True
 cvae.summary()
 
 
-# In[ ]:
+# In[34]:
 
 
 cvae_input = cvae.encoder.input[0]
@@ -1107,7 +1109,7 @@ cvae.compile(optimizer = opt)
 #cvae.compile(optimizer='adam')
 
 
-# In[ ]:
+# In[35]:
 
 
 z_mean = np.random.normal(size=(100, 512))
@@ -1119,13 +1121,13 @@ kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean)
 kl_loss.shape
 
 
-# In[ ]:
+# In[36]:
 
 
 np.prod(input_shape)
 
 
-# In[ ]:
+# In[37]:
 
 
 # dim = batch_size
@@ -1133,14 +1135,14 @@ np.prod(input_shape)
 #kl_loss.shape
 
 
-# In[ ]:
+# In[38]:
 
 
 kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1)) #sum over encoded dimensiosn, average over batch
 kl_loss.shape
 
 
-# In[ ]:
+# In[39]:
 
 
 input_img = np.random.normal(size=(100, 32, 32, 3))
@@ -1152,7 +1154,7 @@ reconstruction_loss = np.prod(input_img.shape) * tf.keras.losses.MSE(tf.keras.ba
 reconstruction_loss
 
 
-# In[ ]:
+# In[40]:
 
 
 #dim = batch_size
@@ -1166,21 +1168,21 @@ reconstruction_loss.shape
 
 # ## **Training**
 
-# In[ ]:
+# In[41]:
 
 
 logdir = os.path.join("logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
 
 
-# In[ ]:
+# In[42]:
 
 
 epoch_count = 100
 batch_size = 100
 
 
-# In[ ]:
+# In[43]:
 
 
 # Directory
@@ -1203,7 +1205,7 @@ os.mkdir(path + '/activations')
 os.mkdir(path + '/filters')
 
 
-# In[ ]:
+# In[44]:
 
 
 import wandb
@@ -1211,7 +1213,7 @@ from wandb.keras import WandbCallback
 #wandb.init(project="my-test-project", entity="nrderus")
 
 
-# In[ ]:
+# In[45]:
 
 
 patience = 5
@@ -1219,7 +1221,7 @@ patience = 5
 
 wandb.init(project="HistoDL", entity="nrderus",
   config = {
-  "dataset": "cifar10",
+  "dataset": dataset_name,
   "model": "CVAE",
   "encoded_dim": encoded_dim,
   "kl_coefficient": kl_coefficient,
@@ -1231,7 +1233,7 @@ wandb.init(project="HistoDL", entity="nrderus",
 })
 
 
-# In[ ]:
+# In[46]:
 
 
 
@@ -1502,79 +1504,63 @@ if encoded_dim == 2:
 # In[ ]:
 
 
+def visualize_activations(model):
+    test = test_x[1]
+    plt.imshow(test)
+    #test = image.img_to_array(test)
+    test = np.expand_dims(test, axis=0)
+    test.shape
+    test_label = test_y_one_hot[0]
+    img_tensor = [test, test_label]
+    from keras import models
 
-model = cvae.encoder
+    # Extracts the outputs of the top 8 layers:
+    import tensorflow as tf
 
+    layer_outputs = []
+    layer_names = []
+    for layer in model.layers[1:]:
+        
+        try: 
+            layer_outputs.append(layer.get_output_at(1))
+            layer_names.append(layer.name)
+        
+        except:
+            layer_outputs.append(layer.output)
+            layer_names.append(layer.name)
 
-# In[ ]:
-
-
-
-test = test_x[1]
-plt.imshow(test)
-#test = image.img_to_array(test)
-test = np.expand_dims(test, axis=0)
-test.shape
-test_label = test_y_one_hot[0]
-img_tensor = [test, test_label]
-
-
-# In[ ]:
-
-
-from keras import models
-
-# Extracts the outputs of the top 8 layers:
-import tensorflow as tf
-
-layer_outputs = []
-layer_names = []
-for layer in model.layers[1:]:
+    # Creates a model that will return these outputs, given the model input:
+    activation_model = models.Model(inputs=model.input, outputs=layer_outputs)
     
-    try: 
-        layer_outputs.append(layer.get_output_at(1))
-        layer_names.append(layer.name)
+    # This will return a list of 5 Numpy arrays:
+    # one array per layer activation
+    if 'encoder' in model.name:
+        input_img, input_label, conditional_input = cvae.conditional_input(img_tensor)
+        activations = activation_model.predict(conditional_input) #for encoder
+
+    if 'decoder' in model.name:
+        input_img, input_label, conditional_input = cvae.conditional_input(img_tensor)
+        input_label = np.expand_dims(input_label, axis=0)
+        z_mean, z_log_var = cvae.encoder(conditional_input)
+        z_cond = cvae.sampling(z_mean, z_log_var, input_label)
+        
+        activations = activation_model.predict(z_cond) #for decoder
     
-    except:
-        layer_outputs.append(layer.output)
-        layer_names.append(layer.name)
-
-# Creates a model that will return these outputs, given the model input:
-activation_model = models.Model(inputs=model.input, outputs=layer_outputs)
-activation_model
-
-
-# In[ ]:
-
-
-layer_names
-
-
-# In[ ]:
-
-
-# This will return a list of 5 Numpy arrays:
-# one array per layer activation
-if 'encoder' in model.name:
-    input_img, input_label, conditional_input = cvae.conditional_input(img_tensor)
-    activations = activation_model.predict(conditional_input) #for encoder
-
-if 'decoder' in model.name:
-    input_img, input_label, conditional_input = cvae.conditional_input(img_tensor)
-    input_label = np.expand_dims(input_label, axis=0)
-    z_mean, z_log_var = cvae.encoder(conditional_input)
-    z_cond = cvae.sampling(z_mean, z_log_var, input_label)
+    for activation, name in zip(activations[0:], layer_names[0:]):
+        print(name)
+        print(activation.shape)
     
-    activations = activation_model.predict(z_cond) #for decoder
-
-len(activations)
+    for counter, (activation, name) in enumerate(zip(activations[0:], layer_names[0:])):
+        print(name)
+        plot_filters(activation, name, counter, model_name=model.name)
+            
 
 
 # In[ ]:
 
 
 import math
-def plot_filters(activation_layer, layer_name, counter):
+def plot_filters(activation_layer, layer_name, counter, model_name):
     if len(activation_layer.shape) == 2: # if flat layer
         print('flat')
         return None
@@ -1599,8 +1585,8 @@ def plot_filters(activation_layer, layer_name, counter):
         fig.suptitle(layer_name)
 
         ax.imshow(activation_layer[0,:, :, 0], cmap='viridis')
-        wandb.log({"Activations": wandb.Image(plt, caption=layer.name)})
-        fig.savefig("reports/" + directory + '/activations/{}_{}_activations_{}.png'.format(model.name,
+        wandb.log({"Activations": wandb.Image(plt, caption="{}_{}".format(model_name, layer_name)) })
+        fig.savefig("reports/" + directory + '/activations/{}_{}_activations_{}.png'.format(model_name,
                      counter, layer_name))
         return None   
 
@@ -1611,8 +1597,8 @@ def plot_filters(activation_layer, layer_name, counter):
         fig.suptitle(layer_name)
         for i in range(3):
             ax[i].imshow(activation_layer[0,:, :, i], cmap='viridis')
-        wandb.log({"Activations": wandb.Image(plt, caption=layer.name)})
-        fig.savefig("reports/" +directory +'/activations/{}_{}_activations_{}.png'.format(model.name, counter, layer_name))
+        wandb.log({"Activations": wandb.Image(plt, caption="{}_{}".format(model_name, layer_name)) })
+        fig.savefig("reports/" +directory +'/activations/{}_{}_activations_{}.png'.format(model_name, counter, layer_name))
         return None   
 
     fig, ax = plt.subplots(n, m, sharex='col', sharey='row',figsize=(15, 15))
@@ -1627,30 +1613,26 @@ def plot_filters(activation_layer, layer_name, counter):
             filter_counter += 1
             if filter_counter == (activation_layer.shape[3] ):
                 break
-    wandb.log({"Activations": wandb.Image(plt, caption=layer.name)})
-    fig.savefig("reports/" + directory + "/activations/{}_{}_activations_{}.png".format(model.name, counter, layer_name))
+
+    wandb.log({"Activations": wandb.Image(plt, caption="{}_{}".format(model_name, layer_name)) })
+    fig.savefig("reports/" + directory + "/activations/{}_{}_activations_{}.png".format(model_name, counter, layer_name))
     return None
 
 
 # In[ ]:
 
 
-for activation, name in zip(activations[0:], layer_names[0:]):
+visualize_activations( cvae.encoder)
+visualize_activations(cvae.decoder)
 
-    print(name)
-    print(activation.shape)
-    
 
+# # **Visualize filters**
 
 # In[ ]:
 
 
-for counter, (activation, name) in enumerate(zip(activations[0:], layer_names[0:])):
-    print(name)
-    plot_filters(activation, name, counter)
+model = cvae.encoder
 
-
-# # **Visualize filters**
 
 # In[ ]:
 
@@ -1663,7 +1645,7 @@ def deprocess_image(img):
     img *= 0.15
 
     # Center crop
-    img = img[25:-25, 25:-25, :]
+    #img = img[ 25:-25, 25:-25, :]
 
     # Clip to [0, 1]
     img += 0.5
@@ -1673,10 +1655,6 @@ def deprocess_image(img):
     img *= 255
     img = np.clip(img, 0, 255).astype("uint8")
     return img
-
-def normalize(x):
-    # utility function to normalize a tensor by its L2 norm
-    return x / (K.sqrt(K.mean(K.square(x))) + K.epsilon())
 
 
 # In[ ]:
@@ -1707,14 +1685,7 @@ def build_nth_filter_loss(filter_index, layer_name):
     We build a loss function that maximizes the activation
     of the nth filter of the layer considered
     """
-    
-    layer_output = layer_dict[layer_name].output
-    if K.image_data_format() == 'channels_first':
-        loss = K.mean(layer_output[:, filter_index, :, :])
-    else:
-        loss = K.mean(layer_output[:, :, :, filter_index])
 
-    # Initiate random noise
     # Create a connection between the input and the target layer
     
     submodel = tf.keras.models.Model([model.inputs[0]],
@@ -1724,51 +1695,38 @@ def build_nth_filter_loss(filter_index, layer_name):
 
     input_img_data = np.random.random((1, input_shape[0], input_shape[1],
                                      input_shape[2]))
-    input_img_data = (input_img_data - 0.5) * 20 + 128.
 
+    input_img_data =(input_img_data - 0.5) * 0.25
     # Cast random noise from np.float64 to tf.float32 Variable
     input_img_data = tf.Variable(tf.cast(input_img_data, tf.float32))
+
     data = [input_img_data, train_y_one_hot[0]]
-    _, _, conditional_input_img = filter_conditional_input(data)
+    _, _, conditional_input_img = filter_conditional_input(data) 
     conditional_input_img= tf.Variable(tf.cast(conditional_input_img,
                                          tf.float32))
 
     for _ in range(epochs):
         with tf.GradientTape() as tape:
             outputs = submodel(conditional_input_img)
-            loss_value = tf.reduce_mean(outputs[:, 2:-2, 2:-2, filter_index]) #removed borders
+            loss_value = tf.reduce_mean(outputs[:, 2:-2, 2:-2, filter_index]) #removed borders in loss
         grads = tape.gradient(loss_value, conditional_input_img)
         normalized_grads = grads / (tf.sqrt(tf.reduce_mean(tf.square(grads)))
                                    + 1e-5)
+        #normalized_grads = tf.math.l2_normalize(grads)
         conditional_input_img.assign_add(normalized_grads * step_size)
 
     # this function returns the loss and grads given the input picture
     #iterate = K.function([input_img], [loss_value, grads])
 
     if loss_value > 0:
+        
+        #img = conditional_input_img.numpy().astype(np.float64)
+        #img = img.squeeze()
+        #img = deprocess_image(img) / 255.
         img = conditional_input_img.numpy().astype(np.float64)
         img = img.squeeze()
-        img = deprocess_image(img) / 255.
+        img = deprocess_image(img)
         kept_filters.append((img, loss_value))
-
-
-# In[ ]:
-
-
-import numpy as np
-import tensorflow as tf
-
-# Layer name to inspect
-layer_name = 'block1_conv1'
-
-epochs = 100
-step_size = 1.
-filter_index = 1
-
-# Create a connection between the input and the target layer
-submodel = tf.keras.models.Model([model.inputs[0]],
-                                 [model.get_layer(layer_name).output])
-submodel.output
 
 
 # In[ ]:
@@ -1797,9 +1755,8 @@ layers_filters = [layer.name for layer in model.layers]
 # In[ ]:
 
 
-
-epochs = 100
-step_size = 1.
+epochs = 30
+step_size = 10.
 kept_filters = []
 filters_dict = dict()
 for layer_name in layers_filters:
@@ -1829,21 +1786,23 @@ def stich_filters(kept_filters, layer_name):
     # build a black picture with enough space for
     # our 8 x 8 filters of size 128 x 128, with a 5px margin in between
     margin = 5
+    
     width = n * img_width + (n - 1) * margin
     height = n * img_height + (n - 1) * margin
+
     stitched_filters = np.zeros((width, height, 3))
 
     # fill the picture with our saved filters
     for i in range(n):
         for j in range(n):
-            img, loss = kept_filters[i * n + j]
+            img, _ = kept_filters[i * n + j]
             width_margin = (img_width + margin) * i
             height_margin = (img_height + margin) * j
             stitched_filters[
                 width_margin: width_margin + img_width,
                 height_margin: height_margin + img_height, :] = img[:, :, :3] 
 
-    wandb.log({"Filters": wandb.Image(stitched_filters, caption=layer_name)})
+    wandb.log({"Filters": wandb.Image(stitched_filters, caption="{}_{}".format(model.name, layer_name)) })
     # save the result to disk
     save_img("reports/" +directory + '/filters/{}_stitched_filters_{}.png'.format(model.name,
              layer_name), stitched_filters)
@@ -1863,8 +1822,14 @@ for layer_name, kept_filters in filters_dict.items():
 # In[ ]:
 
 
-from src.cvae import CVAE
-CVAE(cvae_encoder, cvae_decoder, kl_coefficient, input_shape)
+wandb.finish(exit_code=0, quiet = True)
+
+
+# In[ ]:
+
+
+#from src.cvae import CVAE
+#CVAE(cvae_encoder, cvae_decoder, kl_coefficient, input_shape)
 
 
 # # **Report activations**
