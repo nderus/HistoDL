@@ -5,7 +5,7 @@
 
 # # **Utility functions**
 
-# In[10]:
+# In[1]:
 
 
 import numpy as np
@@ -18,21 +18,41 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.utils import to_categorical
 import tensorflow as tf
 print(tf. __version__)
+import wandb
 
-
-# In[11]:
+# In[2]:
 
 
 import datetime, os
 
 
-# In[12]:
+# In[3]:
 
 
 K.clear_session()
 
 
-# In[13]:
+wandb.init(project="HistoDL", entity="nrderus",
+  config = {
+  "dataset": "CelebA",
+  "model": "CVAE",
+  "encoded_dim": 2,
+  "kl_coefficient": 1,
+  "learning_rate": 0.001,
+  "epochs": 100,
+  "batch_size": 100,
+  "patience": 5,
+  
+})
+
+
+# 
+
+# 
+
+# 
+
+# In[4]:
 
 
 def find_indices(lst, condition):
@@ -59,18 +79,16 @@ def plot_2d_data_categorical(data_2d, y, titles=None, figsize = (7, 7), category
         axs[k, i].set_xlim([-3, 3])
         axs[k, i].set_ylim([-3, 3])
         wandb.log({"Embdedding_classes": wandb.Image(plt)})
-        fig.savefig('reports/' + directory + '/encoding_categorical')
         
-def plot_2d_data(data_2d, y, titles=None, figsize = (7, 7)):
+def plot_2d_data(data_2d, titles=None, figsize = (7, 7)):
   _, axs = plt.subplots(1, len(data_2d), figsize = figsize)
 
   for i in range(len(data_2d)):
     
     if (titles != None):
       axs[i].set_title(titles[i])
-    scatter=axs[i].scatter(data_2d[i][:, 0], data_2d[i][:, 1],
-                            s=1, c=y[i], cmap=plt.cm.Paired)
-    axs[i].legend(*scatter.legend_elements())
+    scatter=axs[i].scatter(data_2d[i][:, 0], data_2d[i][:, 1], s=1,
+                             cmap=plt.cm.Paired)
     wandb.log({"Embdedding": wandb.Image(plt)})
 
 def plot_history(history,metric=None):
@@ -118,7 +136,7 @@ def plot_generated_images(generated_images, nrows, ncols,
   plt.show()
 
 
-# In[14]:
+# In[5]:
 
 
 def conditional_input(self, inputs, label_size=10):
@@ -135,7 +153,7 @@ def conditional_input(self, inputs, label_size=10):
     return  input_img, input_label, conditional_input
 
 
-# In[15]:
+# In[6]:
 
 
 def sampling(z_mean, z_log_var, input_label):
@@ -147,7 +165,7 @@ def sampling(z_mean, z_log_var, input_label):
     return z_cond
 
 
-# In[16]:
+# In[7]:
 
 
 def Train_Val_Plot(loss, val_loss, reconstruction_loss, val_reconstruction_loss, kl_loss, val_kl_loss):
@@ -183,7 +201,7 @@ def Train_Val_Plot(loss, val_loss, reconstruction_loss, val_reconstruction_loss,
 
 # # **Data import and manipulation**
 
-# In[17]:
+# In[8]:
 
 
 import os 
@@ -227,7 +245,7 @@ def load_val_dataset(name, root_folder):
     return x, side_length, channels
 
 
-# In[18]:
+# In[9]:
 
 
 train_x, _, _ = load_dataset("celeba", "datasets")
@@ -244,7 +262,7 @@ print('Min value: ',train_x.min())
 print('Max value: ',train_x.max())
 
 
-# In[19]:
+# In[10]:
 
 
 import pandas as pd
@@ -254,7 +272,7 @@ df = pd.read_csv(file_path, header = 0, index_col = 0).replace(-1,0)
 df.shape
 
 
-# In[20]:
+# In[11]:
 
 
 train_y = np.array(df.iloc[ 0: 162770], dtype = "float32")
@@ -262,15 +280,15 @@ print(train_y.shape)
 print(train_x.shape)
 
 
-# In[ ]:
+# In[12]:
 
 
-test_y = np.array(df.iloc[ 182637, 202599], dtype = "float32")
+test_y = np.array(df.iloc[182637: 202599], dtype = "float32")
 print(test_y.shape)
 print(test_x.shape)
 
 
-# In[21]:
+# In[13]:
 
 
 val_y = np.array(df.iloc[162770: 182637], dtype = "float32")
@@ -278,7 +296,7 @@ print(val_y.shape)
 print(val_x.shape)
 
 
-# In[22]:
+# In[14]:
 
 
 train_x = np.array(train_x, dtype = "float")
@@ -286,7 +304,7 @@ test_x = np.array(test_x, dtype = "float")
 val_x = np.array(val_x, dtype = "float")
 
 
-# In[24]:
+# In[15]:
 
 
 input_shape = (64, 64, 3)
@@ -295,13 +313,13 @@ input_shape = (64, 64, 3)
 # # **CVAE model**
 # Creating a CVAE class and plugging encoder and decoder
 
-# In[25]:
+# In[16]:
 
 
-encoded_dim = 128
+encoded_dim = wandb.config.encoded_dim
 
 
-# In[26]:
+# In[17]:
 
 
 #relu brings a lot of activation values = 0, leaky seems better
@@ -313,7 +331,7 @@ def bn_relu(inputs):
     return(relu)
 
 
-# In[27]:
+# In[18]:
 
 
 def encoder3( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2): 
@@ -362,7 +380,7 @@ def encoder3( input_shape = (28, 28, 1),  label_size=10, encoded_dim = 2):
     return model
 
 
-# In[28]:
+# In[19]:
 
 
 def decoder3(input_shape, encoded_dim = 2,label_size=10): 
@@ -411,26 +429,26 @@ def decoder3(input_shape, encoded_dim = 2,label_size=10):
     return model
 
 
-# In[29]:
+# In[20]:
 
 
 cvae_encoder = encoder3(encoded_dim = encoded_dim, input_shape = input_shape, label_size=40)
 cvae_decoder = decoder3(encoded_dim = encoded_dim, input_shape = input_shape, label_size=40)
 
 
-# In[30]:
+# In[21]:
 
 
 cvae_encoder.summary()
 
 
-# In[31]:
+# In[22]:
 
 
 cvae_decoder.summary()
 
 
-# In[32]:
+# In[38]:
 
 
 class CVAE(keras.Model):
@@ -473,7 +491,7 @@ class CVAE(keras.Model):
         z_cond = self.sampling(z_mean, z_log_var, input_label)
         return self.decoder(z_cond)
     
-    def conditional_input(self, inputs, label_size=10): 
+    def conditional_input(self, inputs, label_size=40): 
   
         image_size = [self.shape[0], self.shape[1], self.shape[2]]
     
@@ -499,17 +517,19 @@ class CVAE(keras.Model):
         z_cond = tf.concat([z, input_label], axis=1)
         return z_cond
 
+
     def train_step(self, data):
         if isinstance(data, tuple):
             data = data[0]
         with tf.GradientTape() as tape:
+
             input_img, input_label, conditional_input = self.conditional_input(data)
             z_mean, z_log_var = self.encoder(conditional_input)
             self.latent_var.append(z_log_var)
+   
             z_cond = self.sampling(z_mean, z_log_var, input_label)
             reconstruction = self.decoder(z_cond)
-            #reconstruction_loss = np.prod(self.shape) * tf.keras.losses.MSE(tf.keras.backend.flatten(input_img),
-            #                        tf.keras.backend.flatten(reconstruction))
+
             reconstruction_loss = tf.reduce_sum(
                  keras.losses.MSE(input_img, # removed np.prod(self.shape) *
                                     reconstruction), axis=(1, 2))            
@@ -567,10 +587,11 @@ class CVAE(keras.Model):
         }
 
 
-# In[33]:
+# In[39]:
 
 
-kl_coefficient = encoded_dim / (input_shape[0] * input_shape[1] * input_shape[2])
+#kl_coefficient = encoded_dim / (input_shape[0] * input_shape[1] * input_shape[2])
+kl_coefficient = 1
 print('kl coefficient: {:.3f}'.format(kl_coefficient))
 # from b vae paper, use beta = encoded_dimension / pixel_dimension i.e. -> 0.068
 cvae = CVAE(cvae_encoder, cvae_decoder, kl_coefficient, input_shape)
@@ -578,7 +599,7 @@ cvae.built = True
 cvae.summary()
 
 
-# In[34]:
+# In[40]:
 
 
 cvae_input = cvae.encoder.input[0]
@@ -586,13 +607,14 @@ cvae_output = cvae.decoder.output
 mu = cvae.encoder.get_layer('mu').output
 log_var = cvae.encoder.get_layer('log_var').output
 
-learning_rate = 0.0001
+#learning_rate = 0.0001
+learning_rate = 0.001
 opt = keras.optimizers.Adam(learning_rate = learning_rate)
 cvae.compile(optimizer = opt)
 #cvae.compile(optimizer='adam')
 
 
-# In[35]:
+# In[41]:
 
 
 z_mean = np.random.normal(size=(100, 512))
@@ -604,13 +626,19 @@ kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean)
 kl_loss.shape
 
 
-# In[36]:
+# In[42]:
 
 
 np.prod(input_shape)
 
 
-# In[37]:
+# In[ ]:
+
+
+
+
+
+# In[43]:
 
 
 # dim = batch_size
@@ -618,14 +646,14 @@ np.prod(input_shape)
 #kl_loss.shape
 
 
-# In[38]:
+# In[44]:
 
 
 kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1)) #sum over encoded dimensiosn, average over batch
 kl_loss.shape
 
 
-# In[39]:
+# In[45]:
 
 
 input_img = np.random.normal(size=(100, 32, 32, 3))
@@ -637,7 +665,7 @@ reconstruction_loss = np.prod(input_img.shape) * tf.keras.losses.MSE(tf.keras.ba
 reconstruction_loss
 
 
-# In[40]:
+# In[46]:
 
 
 #dim = batch_size
@@ -651,68 +679,48 @@ reconstruction_loss.shape
 
 # ## **Training**
 
-# In[41]:
+# In[47]:
 
 
 epoch_count = 100
-batch_size = 100
+batch_size = wandb.config.batch_size
 
-
-# In[42]:
-
-
-# Training configuration
-learning_rate = 0.001
-
-
-# In[43]:
+# In[48]:
 
 
 label_size = 40
 
 
-# In[44]:
+# In[49]:
 
 
-import wandb
+
 from wandb.keras import WandbCallback
 #wandb.init(project="my-test-project", entity="nrderus")
 
 
-# In[45]:
+# In[50]:
+
+
+train_x = train_x[:100000,:, :, :]
+train_y = train_y[:100000, :]
+
+test_x = test_x[:19000,:, :, :]
+test_y = test_y[:19000, :]
+
+val_x = val_x[:19000, :, :, :]
+val_y = val_y[:19000, :]
+
+
+# In[51]:
 
 
 patience = 5
 
-train_x = train_x[:50000,:, :, :]
-train_y = train_y[:50000, :]
 
 
-val_x = val_x[:10000, :, :, :]
-val_y = val_y[:10000, :]
 
-
-# In[ ]:
-
-
-patience = 5
-
-
-wandb.init(project="HistoDL", entity="nrderus",
-  config = {
-  "dataset": "CelebA",
-  "model": "CVAE",
-  "encoded_dim": encoded_dim,
-  "kl_coefficient": kl_coefficient,
-  "learning_rate": learning_rate,
-  "epochs": epoch_count,
-  "batch_size": batch_size,
-  "patience": patience,
-  
-})
-
-
-# In[46]:
+# In[52]:
 
 
 patience = 5
@@ -724,7 +732,7 @@ history = cvae.fit([train_x, train_y],
                    validation_data=([val_x, val_y],None),
                    epochs=epoch_count,
                    batch_size=batch_size,
-                   callbacks=[early_stop ])
+                   callbacks=[early_stop, WandbCallback(save_weights_only=True) ])
 
 
 # In[ ]:
@@ -762,9 +770,7 @@ Train_Val_Plot(history.history['loss'][1:],
 # In[ ]:
 
 
-test_loss = cvae.evaluate([test_x, test_y],None,
-            batch_size=batch_size,verbose=0)
-print('Test loss: {:.3f}'.format(test_loss[2]))
+train_y[:100].shape
 
 
 # ## **Embdedding**
@@ -773,10 +779,10 @@ print('Test loss: {:.3f}'.format(test_loss[2]))
 
 
 
-label_size = 10
-_, input_label_train, train_input = cvae.conditional_input([train_x, train_y])
-_, input_label_test, test_input = cvae.conditional_input([test_x, test_y])
-_, input_label_val, val_input = cvae.conditional_input([val_x, val_y])
+label_size = 40
+_, input_label_train, train_input = cvae.conditional_input([train_x[:5000], train_y[:5000]])
+_, input_label_test, test_input = cvae.conditional_input([test_x[:5000], test_y[:5000]])
+_, input_label_val, val_input = cvae.conditional_input([val_x[:5000], val_y[:5000]])
 
 
 print(input_label_train.shape)
@@ -804,11 +810,8 @@ if encoded_dim > 2:
     test_x_tsne = tsne.fit_transform(test_x_mean[:2000])
     val_x_tsne = tsne.fit_transform(val_x_mean[:2000])
     plot_2d_data( [train_x_tsne, test_x_tsne, val_x_tsne],
-            [train_y[:2000], test_y[:2000] ,val_y[:2000]],
             ['Train','Test', 'Validation'],(18,6))
-    plot_2d_data_categorical( [train_x_mean, test_x_mean, val_x_mean],
-            [train_y, test_y ,val_y],
-            ['Train','Test', 'Validation'],(12,36))
+   
 
 
 # In[ ]:
@@ -816,11 +819,7 @@ if encoded_dim > 2:
 
 if encoded_dim == 2:
     plot_2d_data( [train_x_mean, test_x_mean, val_x_mean],
-                [train_y, test_y ,val_y],
                 ['Train','Test', 'Validation'],(18,6))
-    plot_2d_data_categorical( [train_x_mean, test_x_mean, val_x_mean],
-                [train_y, test_y ,val_y],
-                ['Train','Test', 'Validation'],(12,36))
 
 
 # ## **Reconstruction**
@@ -885,15 +884,18 @@ def reparametrization(z_mean, z_log_var, input_label):
 # In[ ]:
 
 
-target_attr = 2
+#target_attr = [2,9,15,21,24,31,33,39]
+target_attr = [2, 9, 12, 21, 26, 27, 31, 39]
+
 _, axs = plt.subplots(2, image_count, figsize=(12, 3))
+
 for i in range(image_count):
     attr_vect = np.zeros(40)
     for attr in target_attr:
         attr_vect[attr] = 1
     labels = np.tile(attr_vect, reps = [batch_size, 1])
     print("Generation ofimages with attributes: ", target_attr )
-    a = tf.convert_to_tensor(labels)
+    a = tf.convert_to_tensor(labels,dtype="float")
     b = tf.concat([a, a], axis=0) # with 1 dimension, it fails...
     z_cond = reparametrization(z_mean=0, z_log_var=0.3, input_label = b)
     decoded_x = cvae_decoder.predict(z_cond)
@@ -903,7 +905,70 @@ for i in range(image_count):
     axs[0, i].axis('off')
     axs[1, i].imshow(digit_1)
     axs[1, i].axis('off')
-wandb.log({"Generations": wandb.Image(plt)})
+
+
+attributes = str(df.columns[target_attr].tolist())
+wandb.log(   {"Generations:_{}".format(attributes): wandb.Image(plt)}     )
+
+
+# In[ ]:
+
+
+target_attr = [0, 8, 15, 20]
+
+
+_, axs = plt.subplots(2, image_count, figsize=(12, 3))
+
+for i in range(image_count):
+    attr_vect = np.zeros(40)
+    for attr in target_attr:
+        attr_vect[attr] = 1
+    labels = np.tile(attr_vect, reps = [batch_size, 1])
+    print("Generation ofimages with attributes: ", target_attr )
+    a = tf.convert_to_tensor(labels,dtype="float")
+    b = tf.concat([a, a], axis=0) # with 1 dimension, it fails...
+    z_cond = reparametrization(z_mean=0, z_log_var=0.3, input_label = b)
+    decoded_x = cvae_decoder.predict(z_cond)
+    digit_0 = decoded_x[0].reshape(input_shape) 
+    digit_1 = decoded_x[1].reshape(input_shape) 
+    axs[0, i].imshow(digit_0)
+    axs[0, i].axis('off')
+    axs[1, i].imshow(digit_1)
+    axs[1, i].axis('off')
+
+
+attributes = str(df.columns[target_attr].tolist())
+wandb.log(   {"Generations:_{}".format(attributes): wandb.Image(plt)}     )
+
+
+# In[ ]:
+
+
+attr_vect = np.zeros(40)
+for attr in target_attr:
+    attr_vect[attr] = 1
+labels = np.tile(attr_vect, reps = [2, 1])
+labels.shape
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+df.columns.get_loc("Wearing_Hat")
+
+
+# In[ ]:
+
+
+a = tf.convert_to_tensor(labels, dtype="float")
+b = tf.concat([a, a], axis=0) # with 1 dimension, it fails...
+z_cond = reparametrization(z_mean=0, z_log_var=0.3, input_label = b)
 
 
 # # **Visualize activation functions**
@@ -993,8 +1058,7 @@ def plot_filters(activation_layer, layer_name, counter, model_name):
 
         ax.imshow(activation_layer[0,:, :, 0], cmap='viridis')
         wandb.log({"Activations": wandb.Image(plt, caption="{}_{}".format(model_name, layer_name)) })
-        fig.savefig("reports/" + directory + '/activations/{}_{}_activations_{}.png'.format(model_name,
-                     counter, layer_name))
+
         return None   
 
             
@@ -1005,7 +1069,7 @@ def plot_filters(activation_layer, layer_name, counter, model_name):
         for i in range(3):
             ax[i].imshow(activation_layer[0,:, :, i], cmap='viridis')
         wandb.log({"Activations": wandb.Image(plt, caption="{}_{}".format(model_name, layer_name)) })
-        fig.savefig("reports/" +directory +'/activations/{}_{}_activations_{}.png'.format(model_name, counter, layer_name))
+
         return None   
 
     fig, ax = plt.subplots(n, m, sharex='col', sharey='row',figsize=(15, 15))
@@ -1022,7 +1086,7 @@ def plot_filters(activation_layer, layer_name, counter, model_name):
                 break
 
     wandb.log({"Activations": wandb.Image(plt, caption="{}_{}".format(model_name, layer_name)) })
-    fig.savefig("reports/" + directory + "/activations/{}_{}_activations_{}.png".format(model_name, counter, layer_name))
+
     return None
 
 
@@ -1067,7 +1131,7 @@ def deprocess_image(img):
 # In[ ]:
 
 
-def filter_conditional_input( inputs, label_size=10): 
+def filter_conditional_input( inputs, label_size=40): 
   
         image_size = [input_shape[0], input_shape[1], input_shape[2]]
 
@@ -1211,8 +1275,7 @@ def stich_filters(kept_filters, layer_name):
 
     wandb.log({"Filters": wandb.Image(stitched_filters, caption="{}_{}".format(model.name, layer_name)) })
     # save the result to disk
-    save_img("reports/" +directory + '/filters/{}_stitched_filters_{}.png'.format(model.name,
-             layer_name), stitched_filters)
+
     
 
 
@@ -1241,81 +1304,9 @@ wandb.finish(exit_code=0, quiet = True)
 
 # # **Report activations**
 
-# In[ ]:
-
-
-from fpdf import FPDF
-import os
-# create a instance of fpdf
-pdf = FPDF(format='A4')
-pdf.set_margins(0., 0.,  0.)
-pdf.set_auto_page_break(0)
-# use a folder that you created (here it's imgs)
-img_list = [x for x in os.listdir("reports/" + directory + "/activations")] 
-img_list = sorted(img_list, key=lambda x: int(x.split('_')[1]))
-# add new pages with the image 
-for img in img_list:
-    pdf.add_page()
-    pdf.image("reports/" + directory + "/activations/"+img, y=50, w=200, h=200)
-# save the output file
-pdf.output("reports/" + directory +"/report_activations.pdf")
-print("Adding all your images into a pdf file")
-print("Images pdf is created and saved it into the following path folder:\n",
-      os.getcwd())
-
-
 # # **Report filters**
 
-# In[ ]:
-
-
-# create a instance of fpdf
-pdf = FPDF(format='A4')
-pdf.set_margins(30., 0.,  0.)
-pdf.set_auto_page_break(0)
-# use a folder that you created (here it's imgs)
-img_list = [x for x in os.listdir("reports/" + directory + "/filters")] 
-img_list = sorted(img_list)
-# add new pages with the image 
-for img in img_list:
-    pdf.add_page()
-    pdf.image("reports/" + directory + "/filters/"+img, y=75, w=150, h=150)
-# save the output file
-pdf.output("reports/" + directory +"/report_filters.pdf")
-print("Adding all your images into a pdf file")
-print("Images pdf is created and saved it into the following path folder:\n",
-      os.getcwd())
-
-
 # # **Report**
-
-# In[ ]:
-
-
-# create a instance of fpdf
-pdf = FPDF(format='A4')
-pdf.set_margins(0., 0.,  0.)
-pdf.set_auto_page_break(0)
-# use a folder that you created (here it's imgs)
-img_list = [x for x in os.listdir("reports/" + directory )] 
-img_list = sorted(img_list)
-# add new pages with the image 
-for img in img_list:
-    if 'png' in img:
-        pdf.add_page()
-        pdf.image("reports/" + directory + '/' +img, w=275, h=300)
-# save the output file
-pdf.output("reports/" + directory +"/{}.pdf".format(directory))
-print("Adding all your images into a pdf file")
-print("Images pdf is created and saved it into the following path folder:\n",
-      os.getcwd())
-
-
-# In[ ]:
-
-
-img_list
-
 
 # In[ ]:
 

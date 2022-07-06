@@ -102,6 +102,7 @@ def plot_history(history,metric=None):
     ax2.set_ylabel(metric,color=line2.get_color())
     ax2.tick_params(axis='y', labelcolor=line2.get_color())
     _=ax2.legend(loc='upper right')
+  
 
 def plot_generated_images(generated_images, nrows, ncols,
                           no_space_between_plots=False, figsize=(10, 10)):
@@ -114,7 +115,7 @@ def plot_generated_images(generated_images, nrows, ncols,
 
   if no_space_between_plots:
     plt.subplots_adjust(wspace=0,hspace=0)
-
+  
   plt.show()
 
 
