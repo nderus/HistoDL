@@ -210,9 +210,10 @@ for filename in imagePatches:
 # In[ ]:
 
 
-sampled_class0 = random.sample(class0, 50000)
+sampled_class0 = random.sample(class0, 50000) 
 sampled_class1 = random.sample(class1, 50000)
-len(sampled_class0)
+print(len(sampled_class0))
+print(len(sampled_class1))
 
 
 # In[ ]:
@@ -243,8 +244,8 @@ class1_array = get_image_arrays(sampled_class1, 1)
 
 
 combined_data = np.concatenate((class0_array, class1_array))
-random.seed(41)
-random.shuffle(combined_data)
+# random.seed(41)
+# random.shuffle(combined_data)
 
 
 # In[ ]:
@@ -387,16 +388,18 @@ class EncoderResBlock(keras.Model):
             self.shortcut = keras.Sequential()
  
         self.conv2 = layers.Conv2D(filters, 3, 1, padding='same')
-    def call(self, input):
+        
+    def __call__(self, input):
+        
         shortcut = self.shortcut(input)
 
         input = self.conv1(input)
-        input = bn_relu(input)
+        input = layers.BatchNormalization()(input)
+        input = layers.ReLU()(input)
+        input = layers.BatchNormalization()(input)
+        input = layers.ReLU()(input)
 
-        input = self.conv2(input)
-        input = bn_relu(input)
-
-        input = input + shortcut
+        input= input + shortcut
         return layers.ReLU()(input)
 
 
@@ -441,7 +444,7 @@ class EncoderResNet(keras.Model):
         self.bottleneck = layers.Dense(encoded_dim * 2, name='encoder_bottleneck')
         self.mu = layers.Dense(encoded_dim, name='mu')
         self.log_var = layers.Dense(encoded_dim, name='log_var')
-    
+ 
 
     def call(self, input):
         input = self.layer0(input)
@@ -472,14 +475,14 @@ class EncoderResNet18(EncoderResNet):
 
     def model(self, input_shape):
         x = layers.Input(input_shape, name='input', dtype='float32')
-        return keras.models.Model(x, self.call(x))
+        return keras.models.Model(x, self.call(x), name='encoder')
 
 
 # In[ ]:
 
 
 #encoder, ok.
-resnet18 = EncoderResNet18(encoded_dim = 128)
+resnet18 = EncoderResNet18(encoded_dim = encoded_dim)
 resnet18 = resnet18.model(input_shape=(50, 50, 5))
 resnet18.summary()
 
@@ -502,7 +505,7 @@ class DecoderResBlock(keras.Model):
  
         self.conv2 = layers.Conv2DTranspose(filters, 3, 1, padding='same')
 
-    def call(self, input):
+    def __call__(self, input):
         shortcut = self.shortcut(input)
 
         input = self.conv1(input)
@@ -568,9 +571,9 @@ class DecoderResNet(keras.Model):
         self.pre_reshape = layers.Dense(2*2*512, name='pre_reshape')
         self.reshape = layers.Reshape(target_shape=(2, 2, 512), name = 'reshape')
         self.output_layer = layers.Conv2DTranspose(filters = 3, kernel_size=3, strides=1, activation='sigmoid' ,padding='valid', name='outputs')
-
+    
     def call(self, input):
-        input = self.bottleneck(input)
+        #input = self.bottleneck(input)
         input = self.pre_reshape(input)
         input = self.reshape(input)
         input = self.layer5(input)
@@ -597,14 +600,14 @@ class DecoderResNet18(DecoderResNet):
 
     def model(self, input_shape):
         x = keras.Input(input_shape, name='input')
-        return keras.models.Model(x, self.call(x))
+        return keras.models.Model(x, self.call(x), name='decoder')
 
 
 # In[ ]:
 
 
 #decoder, ok?
-decoder = DecoderResNet18( encoded_dim = 128)
+decoder = DecoderResNet18( encoded_dim = encoded_dim)
 decoder = decoder.model(input_shape=(encoded_dim + category_count,))
 decoder.summary()
 
@@ -835,10 +838,10 @@ cvae_output = cvae.decoder.output
 mu = cvae.encoder.get_layer('mu').output
 log_var = cvae.encoder.get_layer('log_var').output
 
-learning_rate = 0.0001
+learning_rate = 0.001 #removed a zero
 
 opt = keras.optimizers.Adam(learning_rate = learning_rate)
-cvae.compile(optimizer = opt, run_eagerly=True)
+cvae.compile(optimizer = opt, run_eagerly=False)
 #cvae.compile(optimizer='adam')
 
 
@@ -865,7 +868,7 @@ from wandb.keras import WandbCallback
 #wandb.init(project="my-test-project", entity="nrderus")
 
 
-# In[ ]:
+# In[130]:
 
 
 patience = 5
@@ -902,7 +905,7 @@ history = cvae.fit([train_x,train_y_one_hot],
                    validation_data=([val_x,val_y_one_hot],None),
                    epochs=epoch_count,
                    batch_size=100,
-                   callbacks=[early_stop, WandbCallback(save_weights_only=True) ])
+                   callbacks=[early_stop, WandbCallback(save_model = False) ]) #save_weights_only -> ValueError: Unable to create dataset (name already exists)
 
 
 # In[ ]:
@@ -945,9 +948,8 @@ plot_history(history)
 # In[ ]:
 
 
-cvae.save_weights('weights/cvae_toy.h5')
-cvae_encoder.save('models/cvae_encoder_toy.h5')
-cvae_decoder.save('models/cvae_decoder_toy.h5')
+
+#tf.saved_model.save(cvae, 'saved_model')
 
 
 # In[ ]:
@@ -1171,6 +1173,12 @@ if (label_size <= 10):
 # In[ ]:
 
 
+
+
+
+# In[ ]:
+
+
 def latent_space_interpolation(digit_label=1):
   n = 10 # number of images per row and column
   limit=3 # random values are sampled from the range [-limit,+limit]
@@ -1213,7 +1221,7 @@ if (encoded_dim == 2 & label_size <= 10):
 # In[ ]:
 
 
-wandb.finish(exit_code=0, quiet = True) # TEMPORARY
+#wandb.finish(exit_code=0, quiet = True) # TEMPORARY
 
 
 # # **Visualize activation functions**
@@ -1239,7 +1247,7 @@ def visualize_activations(model):
     for layer in model.layers[1:]:
         
         try: 
-            layer_outputs.append(layer.get_output_at(1))
+            layer_outputs.append(layer.get_output_at(0))
             layer_names.append(layer.name)
         
         except:
@@ -1276,6 +1284,12 @@ def visualize_activations(model):
 # In[ ]:
 
 
+
+
+
+# In[ ]:
+
+
 test = test_x[1]
 plt.imshow(test)
 #test = image.img_to_array(test)
@@ -1292,31 +1306,6 @@ input_img, input_label, conditional_input = cvae.conditional_input(img_tensor)
 print(input_img.shape)
 print(input_label.shape)
 print(conditional_input.shape)
-
-
-# In[ ]:
-
-
-inputs = [input_img, input_label]
-image_size = [28, 28, 1]
-input_img = layers.InputLayer(input_shape=image_size,
-                            dtype ='float32')(inputs[0])
-input_label = layers.InputLayer(input_shape=(label_size, ),
-                                dtype ='float32')(inputs[1])
-
-
-# In[ ]:
-
-
-labels = tf.reshape(inputs[1], [-1, 1, 1, label_size])
-print(labels)
-labels = tf.cast(labels, dtype='float32')
-print(labels)
-ones = tf.ones([inputs[0].shape[0]] + image_size[0:-1] + [label_size])
-print(ones.shape)
-labels = ones * labels 
-print(labels)
-conditional_input = layers.Concatenate(axis=3)([input_img, labels]) 
 
 
 # In[ ]:
@@ -1382,7 +1371,7 @@ def plot_filters(activation_layer, layer_name, counter, model_name):
 # In[ ]:
 
 
-visualize_activations( cvae.encoder)
+visualize_activations(cvae.encoder)
 visualize_activations(cvae.decoder)
 
 
@@ -1420,7 +1409,7 @@ def deprocess_image(img):
 # In[ ]:
 
 
-def filter_conditional_input( inputs, label_size=10): 
+def filter_conditional_input( inputs, label_size=2): 
   
         image_size = [input_shape[0], input_shape[1], input_shape[2]]
 
@@ -1437,7 +1426,7 @@ def filter_conditional_input( inputs, label_size=10):
         return  input_img, input_label, conditional_input
 
 
-# In[ ]:
+# In[126]:
 
 
 def build_nth_filter_loss(filter_index, layer_name):
@@ -1448,8 +1437,9 @@ def build_nth_filter_loss(filter_index, layer_name):
 
     # Create a connection between the input and the target layer
     
-    submodel = tf.keras.models.Model([model.inputs[0]],
-                                     [model.get_layer(layer_name).output])
+    
+    from keras import models
+    submodel =  models.Model(inputs=model.input, outputs= model.get_layer(layer_name).get_output_at(0))
 
 # Initiate random noise
 
@@ -1489,7 +1479,7 @@ def build_nth_filter_loss(filter_index, layer_name):
         kept_filters.append((img, loss_value))
 
 
-# In[ ]:
+# In[127]:
 
 
 #dimensions of the generated pictures for each filter.
@@ -1506,13 +1496,13 @@ layer_dict = dict([(layer.name, layer) for layer in model.layers[1:]])
 layer_dict
 
 
-# In[ ]:
+# In[128]:
 
 
 layers_filters = [layer.name for layer in model.layers]
 
 
-# In[ ]:
+# In[129]:
 
 
 epochs = 30
@@ -1520,7 +1510,7 @@ step_size = 10.
 kept_filters = []
 filters_dict = dict()
 for layer_name in layers_filters:
-    if 'conv' in layer_name:
+    if 'layer' in layer_name:
         layer = model.get_layer(layer_name)
         print('Processing filter for layer:', layer_name)
         for filter_index in range(min(layer.output.shape[-1], 100)):
@@ -1528,6 +1518,18 @@ for layer_name in layers_filters:
             build_nth_filter_loss(filter_index, layer_name)
         filters_dict[layer.name] = kept_filters
         kept_filters = []
+
+
+# In[133]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
@@ -1565,17 +1567,22 @@ def stich_filters(kept_filters, layer_name):
     wandb.log({"Filters": wandb.Image(stitched_filters, caption="{}_{}".format(model.name, layer_name)) })
     # save the result to disk
 
-    
+
+# In[132]:
 
 
-# In[ ]:
+
+
+
+# In[145]:
 
 
 for layer_name, kept_filters in filters_dict.items():
-    print('Stiching filters for {}'.format(layer_name))
-    stich_filters(kept_filters, layer_name)
-    print('number of filters kept:', len(kept_filters))
-    print('Completed.')
+    if len(kept_filters) > 0:
+        print('Stiching filters for {}'.format(layer_name))
+        stich_filters(kept_filters, layer_name)
+        print('number of filters kept:', len(kept_filters))
+        print('Completed.')
 
 
 # In[ ]:
